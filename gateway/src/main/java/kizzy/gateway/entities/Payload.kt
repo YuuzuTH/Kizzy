@@ -3,7 +3,6 @@ package kizzy.gateway.entities
 import kizzy.gateway.entities.op.OpCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class Payload(
@@ -13,6 +12,18 @@ data class Payload(
     val s: Int? = null,
     @SerialName("op")
     val op: OpCode? = null,
+)
+
+@Serializable
+data class PayloadData<T>(
     @SerialName("d")
-    val d: JsonElement? = null
+    val d: T? = null,
+)
+
+@Serializable
+data class OutgoingPayload<T>(
+    @SerialName("op")
+    val op: OpCode? = null,
+    @SerialName("d")
+    val d: T? = null,
 )
