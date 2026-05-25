@@ -55,7 +55,7 @@ class TemplateProcessor(
 
         // NOTE: remove unreplaced placeholders
         result = result.replace(
-            Regex.fromLiteral("\\{\\{(media|app)_[^}]+\\}\\}"), ""
+            Regex("\\{\\{(media|app)_[^}]+\\}\\}"), ""
         )
 
         return result
