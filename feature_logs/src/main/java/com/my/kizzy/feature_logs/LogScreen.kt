@@ -87,13 +87,15 @@ fun LogScreen(viewModel: LogsViewModel) {
     val ctx = LocalContext.current
     val lazyListState = rememberLazyListState()
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
+    val visibleLogs = viewModel.filter()
+    val autoScroll = viewModel.autoScroll.value
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = { ToolBar(viewModel) }
     ) { paddingValues ->
-        LaunchedEffect(viewModel.logs.size) {
-            if (viewModel.logs.isNotEmpty() && viewModel.autoScroll.value)
-                lazyListState.animateScrollToItem(viewModel.logs.size - 1)
+        LaunchedEffect(visibleLogs.lastOrNull(), autoScroll) {
+            if (visibleLogs.isNotEmpty() && autoScroll)
+                lazyListState.animateScrollToItem(visibleLogs.lastIndex)
         }
         LazyColumn(
             state = lazyListState,
@@ -103,7 +105,7 @@ fun LogScreen(viewModel: LogsViewModel) {
                 .padding(paddingValues)
         ) {
             itemsIndexed(
-                viewModel.filter().toList(),// viewModel.logs,
+                visibleLogs,
                 key = { idx, item -> "$idx/${item.createdAt}" }
             ) { i, it ->
                 if (viewModel.showCompat.value) {

@@ -46,7 +46,7 @@ class KLogger: Logger {
 
     private fun addToLog(level: LogLevel, tag: String, event: String) {
         synchronized(logs) {
-            if (logs.size > 300) {
+            if (logs.size >= 300) {
                 logs.removeAt(0)
             }
             val log = LogEvent(level, tag, event, System.currentTimeMillis())
