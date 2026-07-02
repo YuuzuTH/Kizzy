@@ -207,7 +207,9 @@ class ExperimentalRpc : Service() {
                     throw e
                 } catch (e: Exception) {
                     // A transient failure (e.g. network error while uploading an app
-                    // icon) must not kill the detection loop permanently
+                    // icon) must not kill the detection loop permanently. Reset the
+                    // tracked package so the failed update is retried next tick.
+                    currentPackageName = ""
                     logger.e(TAG, "Detection cycle failed: ${e.message}")
                 }
                 delay(2000)

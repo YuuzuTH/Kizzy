@@ -37,6 +37,8 @@ open class DiscordWebSocketImpl(
     private var connected = false
     private var deliberateClose = false
     private var reconnectAttempts = 0
+    private var connectEpoch = 0
+    private var lastPresence: Presence? = null
     private var client: HttpClient = HttpClient {
         install(WebSockets)
     }
@@ -49,12 +51,16 @@ open class DiscordWebSocketImpl(
         get() = SupervisorJob() + Dispatchers.Default
 
     override suspend fun connect() {
+        // A deliberate close is only sticky until the next explicit connect;
+        // the epoch invalidates any reconnect attempt still sleeping in backoff
+        // so two connect loops can never run at once.
+        deliberateClose = false
+        val epoch = ++connectEpoch
         launch {
             try {
                 logger.i("Gateway","Connect called")
                 val url = resumeGatewayUrl ?: gatewayUrl
                 websocket = client.webSocketSession(url)
-                reconnectAttempts = 0
 
                 // start receiving messages
                 websocket!!.incoming.receiveAsFlow()
@@ -67,24 +73,24 @@ open class DiscordWebSocketImpl(
                             else -> {}
                         }
                     }
-                handleClose()
+                handleClose(epoch)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 logger.e("Gateway",e.message?:"")
-                scheduleReconnect()
+                scheduleReconnect(epoch)
             }
         }
     }
 
-    private suspend fun handleClose(){
+    private suspend fun handleClose(epoch: Int){
         heartbeatJob?.cancel()
         connected = false
         val close = websocket?.closeReason?.await()
         val code = close?.code?.toInt()
         logger.w("Gateway","Closed with code: $code, reason: ${close?.message}")
         when {
-            deliberateClose -> {}
+            deliberateClose || epoch != connectEpoch -> {}
             code == 4000 -> {
                 delay(200.milliseconds)
                 connect()
@@ -94,12 +100,12 @@ open class DiscordWebSocketImpl(
                 logger.e("Gateway","Fatal close code $code — not reconnecting")
                 close()
             }
-            else -> scheduleReconnect()
+            else -> scheduleReconnect(epoch)
         }
     }
 
-    private suspend fun scheduleReconnect() {
-        if (deliberateClose) return
+    private suspend fun scheduleReconnect(epoch: Int) {
+        if (deliberateClose || epoch != connectEpoch) return
         heartbeatJob?.cancel()
         connected = false
         runCatching { websocket?.close() }
@@ -112,7 +118,7 @@ open class DiscordWebSocketImpl(
         }
         logger.w("Gateway","Connection lost — reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
         delay(delayMs)
-        if (!deliberateClose) connect()
+        if (!deliberateClose && epoch == connectEpoch) connect()
     }
 
     private suspend fun onMessage(jsonString: String) {
@@ -141,10 +147,16 @@ open class DiscordWebSocketImpl(
                 logger.i("Gateway","resume_gateway_url updated to $resumeGatewayUrl")
                 logger.i("Gateway","session_id updated to $sessionId")
                 connected = true
+                // Only a confirmed session counts as a successful reconnect
+                reconnectAttempts = 0
+                resendLastPresence()
                 return
             }
             "RESUMED" -> {
                 logger.i("Gateway","Session Resumed")
+                connected = true
+                reconnectAttempts = 0
+                resendLastPresence()
             }
             else -> {}
         }
@@ -246,6 +258,9 @@ open class DiscordWebSocketImpl(
 
     override fun close() {
         deliberateClose = true
+        connectEpoch++
+        reconnectAttempts = 0
+        lastPresence = null
         heartbeatJob?.cancel()
         heartbeatJob = null
         this.cancel()
@@ -258,14 +273,28 @@ open class DiscordWebSocketImpl(
         }
     }
 
+    private fun resendLastPresence() {
+        val presence = lastPresence ?: return
+        launch {
+            logger.i("Gateway","Re-sending last presence after (re)connect")
+            send(op = PRESENCE_UPDATE, d = presence)
+        }
+    }
+
     override suspend fun sendActivity(presence: Presence) {
-        // TODO : Figure out a better way to wait for socket to be connected to account
+        // Remember the latest presence so a (re)connect can replay it — a drop
+        // here is recoverable because READY/RESUMED re-sends it.
+        lastPresence = presence
         var waitedMs = 0L
         while (!isSocketConnectedToAccount()){
-            delay(50.milliseconds)
-            waitedMs += 50
+            if (deliberateClose) {
+                logger.w("Gateway","Socket deliberately closed — presence will be replayed on next connect")
+                return
+            }
+            delay(250.milliseconds)
+            waitedMs += 250
             if (waitedMs >= 60_000) {
-                logger.w("Gateway","Socket not connected after 60s — dropping presence update")
+                logger.w("Gateway","Socket not connected after 60s — presence will be replayed on connect")
                 return
             }
         }
