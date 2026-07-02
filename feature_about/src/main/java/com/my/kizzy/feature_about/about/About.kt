@@ -32,7 +32,7 @@ import com.my.kizzy.feature_about.BuildConfig
 
 
 
-const val github_Repository = "https://github.com/dead8309/Kizzy"
+const val github_Repository = "https://github.com/YuuzuTH/Kizzy"
 const val github_Release = "$github_Repository/releases"
 const val github_Issues = "$github_Repository/issues/new"
 const val github_privacy_policy = "$github_Repository/blob//master/TERMS_OF_SERVICE.md"

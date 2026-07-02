@@ -24,6 +24,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import com.blankj.utilcode.util.AppUtils
 import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcImage
@@ -33,6 +34,7 @@ import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -111,15 +113,23 @@ class AppDetectionService : Service() {
 
         scope.launch {
             while (isActive) {
-                val queryUsageStats = getUsageStats()
+                try {
+                    val queryUsageStats = getUsageStats()
 
-                if (queryUsageStats != null && queryUsageStats.size > 1) {
-                    val packageName = getLatestPackageName(queryUsageStats)
-                    if (packageName != null && packageName !in EXCLUDED_APPS) {
-                        handleValidPackage(packageName, enabledPackages, rpcButtons)
+                    if (queryUsageStats != null && queryUsageStats.size > 1) {
+                        val packageName = getLatestPackageName(queryUsageStats)
+                        if (packageName != null && packageName !in EXCLUDED_APPS) {
+                            handleValidPackage(packageName, enabledPackages, rpcButtons)
+                        }
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A transient failure (e.g. network error while uploading an app
+                    // icon) must not kill the detection loop permanently
+                    Log.e("AppDetectionService", "Detection cycle failed: ${e.message}")
                 }
-                delay(5000)
+                delay(2000)
             }
         }
     }

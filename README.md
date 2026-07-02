@@ -1,3 +1,13 @@
+> [!NOTE]
+> ## 🍊 Kizzy by Yuzu夕 — a maintained fork
+> This is a fork of [Kizzy by dead8309](https://github.com/dead8309/Kizzy), continued and maintained by Yuzu夕.
+> All credit for the original app goes to [dead8309](https://github.com/dead8309). Licensed under GPL-3.0, same as upstream.
+>
+> **Changes in this fork:**
+> - Fixed: app/game switch detection dying permanently after a single network error (required a manual restart)
+> - Fixed: RPC silently stopping after 1–2 hours — the Discord gateway connection now auto-reconnects with backoff (and resumes the session when possible)
+> - Faster app-switch detection (2s polling instead of 5s) and a 60s cap on presence-update waits
+
 
 <div align="center">
     <img src="https://user-images.githubusercontent.com/68665948/207296272-d1985003-1681-4df4-b8ea-ca71f2043f89.png">
