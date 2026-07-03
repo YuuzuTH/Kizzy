@@ -26,8 +26,10 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.blankj.utilcode.util.AppUtils
+import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcImage
+import com.my.kizzy.data.rpc.Timestamps
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
 import com.my.kizzy.feature_rpc_base.setLargeIcon
@@ -177,7 +179,20 @@ class AppDetectionService : Service() {
     }
 
     private suspend fun handleEnabledPackage(packageName: String, rpcButtons: RpcButtons) {
-        if (!kizzyRPC.isRpcRunning()) {
+        if (kizzyRPC.isRpcRunning()) {
+            // A presence is already running for the previous app. Update it in place
+            // so switching games immediately reflects the new one — otherwise the RPC
+            // stays stuck on the app it first started with. (Same pattern as MediaRpcService.)
+            kizzyRPC.updateRPC(
+                CommonRpc(
+                    name = AppUtils.getAppName(packageName),
+                    largeImage = RpcImage.ApplicationIcon(packageName, this@AppDetectionService),
+                    time = Timestamps(start = System.currentTimeMillis()),
+                    packageName = packageName
+                ),
+                enableTimestamps = true
+            )
+        } else {
             kizzyRPC.apply {
                 setName(AppUtils.getAppName(packageName))
                 setStartTimestamps(System.currentTimeMillis())
