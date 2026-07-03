@@ -267,6 +267,18 @@ class KizzyRPC(
         }
     }
 
+    /**
+     * Discord renders an activity that carries an `application_id` as a
+     * "Playing {app}" card. For Listening/Watching/Competing (any type other than
+     * Playing) a set `application_id` makes the client drop the whole activity —
+     * so it shows up nowhere even though the presence was sent. Only attach the id
+     * for the Playing type; other types render from `name`/`type` alone.
+     */
+    private fun applicationIdFor(activityType: Int): String? =
+        if (activityType == 0)
+            applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID
+        else null
+
     suspend fun build() {
         presence = Presence(
             activities = listOf(
@@ -289,7 +301,7 @@ class KizzyRPC(
                     ).takeIf { largeImage != null || smallImage != null },
                     buttons = buttons.takeIf { buttons.size > 0 },
                     metadata = Metadata(buttonUrls = buttonUrl).takeIf { buttonUrl.size > 0 },
-                    applicationId = applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID,
+                    applicationId = applicationIdFor(type),
                     url = url
                 )
             ),
@@ -316,6 +328,7 @@ class KizzyRPC(
             Timestamps(end = commonRpc.time.end, start = commonRpc.time.start).also { time = it }
         if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
             Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize)).also { party = it }
+        val effectiveType = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0]
         discordWebSocket.sendActivity(
             Presence(
                 activities = listOf(
@@ -323,7 +336,7 @@ class KizzyRPC(
                         name = commonRpc.name,
                         details = commonRpc.details?.takeIf { it.isNotEmpty() }?.sanitize(),
                         state = commonRpc.state?.takeIf { it.isNotEmpty() }?.sanitize(),
-                        type = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0],
+                        type = effectiveType,
                         platform = commonRpc.platform?.sanitize(),
                         timestamps = time.takeIf { enableTimestamps == true },
                         assets = Assets(
@@ -335,7 +348,7 @@ class KizzyRPC(
                         party = party.takeIf { party != null },
                         buttons = buttons.takeIf { buttons.size > 0 },
                         metadata = Metadata(buttonUrls = buttonUrl).takeIf { buttonUrl.size > 0 },
-                        applicationId = applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID
+                        applicationId = applicationIdFor(effectiveType)
 
                     )
                 ),
