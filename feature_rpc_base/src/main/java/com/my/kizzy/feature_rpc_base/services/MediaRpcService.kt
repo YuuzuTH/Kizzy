@@ -169,20 +169,30 @@ class MediaRpcService : Service() {
     private fun activeSessionsListener(mediaSessions: List<MediaController>?, isEvent: Boolean = true) {
         logger.d("MediaRPC", "Active sessions changed")
 
-        // For some reason, event is occasionally fired before session list is actually updated
-        if (isEvent) runBlocking { delay(1500) }
-
-        if (mediaSessions?.isNotEmpty() == true) {
-            currentMediaController?.unregisterCallback(mediaControllerCallback)
-            currentMediaController = mediaSessionManager.getActiveSessions(ComponentName(this, NotificationListener::class.java)).firstOrNull()
-            currentMediaController?.registerCallback(mediaControllerCallback)
-        } else {
-            currentMediaController?.unregisterCallback(mediaControllerCallback)
-            currentMediaController = null
-        }
-
+        // This listener is invoked on the main thread. The previous code blocked it
+        // with runBlocking { delay(1500) }, freezing the UI for 1.5s on every media
+        // session change. Do the wait and the presence update off the main thread; the
+        // callback (un)registration still has to run on the main looper.
         scope.coroutineContext.cancelChildren()
-        scope.launch { updatePresence() }
+        scope.launch {
+            // The event is occasionally fired before the session list is actually updated.
+            if (isEvent) delay(1500)
+
+            withContext(Dispatchers.Main) {
+                if (mediaSessions?.isNotEmpty() == true) {
+                    currentMediaController?.unregisterCallback(mediaControllerCallback)
+                    currentMediaController = mediaSessionManager.getActiveSessions(
+                        ComponentName(this@MediaRpcService, NotificationListener::class.java)
+                    ).firstOrNull()
+                    currentMediaController?.registerCallback(mediaControllerCallback)
+                } else {
+                    currentMediaController?.unregisterCallback(mediaControllerCallback)
+                    currentMediaController = null
+                }
+            }
+
+            updatePresence()
+        }
     }
 
     private inner class MediaControllerCallback: MediaController.Callback() {
