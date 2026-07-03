@@ -12,4 +12,5 @@ dependencies{
     implementation(libs.kotlinx.coroutine)
     implementation (libs.kotlinx.serialization.json)
     compileOnly(libs.compose.runtime)
+    testImplementation(libs.junit)
 }
