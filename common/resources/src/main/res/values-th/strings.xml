@@ -1,4 +1,8 @@
 <resources>
+    <!--
+        Thai translation by Yuzu夕 (ผู้แปลไทย: Yuzu夕)
+        Retranslated in full from the English source — formal register.
+    -->
     <string name="app_name">Kizzy by Yuzu夕</string>
 
     <!-- Activities -->
