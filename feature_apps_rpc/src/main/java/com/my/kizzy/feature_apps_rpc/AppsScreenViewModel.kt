@@ -60,7 +60,7 @@ class AppsScreenViewModel @Inject constructor(
             _state.update { currentState ->
                 currentState.copy(
                     enabledApps = currentState.enabledApps.toMutableMap().apply {
-                        this[pkg] = !this[pkg]!!
+                        this[pkg] = !(this[pkg] ?: false)
                     },
                 )
             }

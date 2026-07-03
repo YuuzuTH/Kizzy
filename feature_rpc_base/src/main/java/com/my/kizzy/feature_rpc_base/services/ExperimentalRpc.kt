@@ -24,7 +24,9 @@ import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import com.my.kizzy.data.get_current_data.app.GetCurrentlyRunningApp
 import com.my.kizzy.data.get_current_data.media.GetCurrentPlayingMediaAll
 import com.my.kizzy.data.get_current_data.media.RichMediaMetadata
@@ -48,7 +50,6 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -83,6 +84,9 @@ class ExperimentalRpc : Service() {
 
     private var currentMediaController: MediaController? = null
     private val mediaControllerCallback = MediaControllerCallback()
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val reRegisterRunnable = Runnable { reRegisterAndRefresh() }
 
     private var isMediaSessionActive = false
 
@@ -156,25 +160,11 @@ class ExperimentalRpc : Service() {
                 emptyList()
             }
 
-            val initialMediaSessions = mediaSessionManager.getActiveSessions(
-                ComponentName(this, NotificationListener::class.java)
-            )
-            var mediaActiveInitially = false
-            if (useMediaRpc && initialMediaSessions.isNotEmpty()) {
-                val firstActiveMediaController = initialMediaSessions.firstOrNull {
-                    enabledExperimentalApps.contains(it.packageName)
-                }
-                if (firstActiveMediaController != null) {
-                    mediaActiveInitially = true
-                    activeSessionsListener(listOf(firstActiveMediaController), false)
-                }
-            }
-
-            if (!mediaActiveInitially) {
-                if (useAppsRpc) {
-                    startAppDetectionCoroutine()
-                }
-            }
+            // Register the first media session (and fall back to app detection when
+            // there is none). isEvent = false → runs immediately, no debounce delay.
+            // reRegisterAndRefresh() re-queries the sessions itself, so this covers the
+            // whole "media active? → media presence, else → app detection" decision.
+            activeSessionsListener(null, false)
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -418,12 +408,24 @@ class ExperimentalRpc : Service() {
             return
         }
         logger.d(TAG, "Active media sessions changed")
-        if (isEvent) runBlocking { delay(1500) }
+
+        // Debounce on the main looper instead of blocking it with runBlocking{delay}.
+        // The event is occasionally fired before the session list is actually updated,
+        // so we wait 1.5s and re-query fresh inside reRegisterAndRefresh(). Blocking the
+        // main thread here (as the old runBlocking{delay(1500)} did) risks an ANR.
+        mainHandler.removeCallbacks(reRegisterRunnable)
+        mainHandler.postDelayed(reRegisterRunnable, if (isEvent) 1500L else 0L)
+    }
+
+    private fun reRegisterAndRefresh() {
+        val mediaSessions = mediaSessionManager.getActiveSessions(
+            ComponentName(this, NotificationListener::class.java)
+        )
 
         currentMediaController?.unregisterCallback(mediaControllerCallback)
         currentMediaController = null
 
-        if (mediaSessions?.isNotEmpty() == true) {
+        if (mediaSessions.isNotEmpty()) {
             currentMediaController = mediaSessions.firstOrNull {
                 enabledExperimentalApps.contains(it.packageName)
             }
@@ -511,6 +513,7 @@ class ExperimentalRpc : Service() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(reRegisterRunnable)
         mediaSessionManager.removeOnActiveSessionsChangedListener(::activeSessionsListener)
         currentMediaController?.unregisterCallback(mediaControllerCallback)
         scope.cancel()

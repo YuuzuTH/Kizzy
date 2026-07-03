@@ -21,6 +21,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,7 +31,7 @@ class MediaScreenViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val _state: MutableStateFlow<MediaAppsState> = MutableStateFlow(MediaAppsState())
-    val state = _state
+    val state = _state.asStateFlow()
 
     init {
         getInstalledApps()
@@ -60,7 +61,7 @@ class MediaScreenViewModel @Inject constructor(
             _state.update { currentState ->
                 currentState.copy(
                     enabledApps = currentState.enabledApps.toMutableMap().apply {
-                        this[pkg] = !this[pkg]!!
+                        this[pkg] = !(this[pkg] ?: false)
                     }
                 )
             }
