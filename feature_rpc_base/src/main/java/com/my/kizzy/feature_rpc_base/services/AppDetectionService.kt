@@ -116,6 +116,13 @@ class AppDetectionService : Service() {
         scope.launch {
             while (isActive) {
                 try {
+                    // If the presence died (e.g. socket dropped) while we still think an
+                    // app is running, forget it so the next detected package rebuilds
+                    // instead of being skipped as "unchanged" and staying frozen.
+                    if (runningPackage.isNotEmpty() && !kizzyRPC.isRpcRunning()) {
+                        runningPackage = ""
+                    }
+
                     val queryUsageStats = getUsageStats()
 
                     if (queryUsageStats != null && queryUsageStats.size > 1) {
@@ -179,14 +186,21 @@ class AppDetectionService : Service() {
     }
 
     private suspend fun handleEnabledPackage(packageName: String, rpcButtons: RpcButtons) {
+        // Build the icon once and reuse it for the RPC image and the notification —
+        // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
+        // it several times per switch repeats that work for nothing.
+        val icon = RpcImage.ApplicationIcon(packageName, this@AppDetectionService)
         if (kizzyRPC.isRpcRunning()) {
             // A presence is already running for the previous app. Update it in place
             // so switching games immediately reflects the new one — otherwise the RPC
-            // stays stuck on the app it first started with. (Same pattern as MediaRpcService.)
+            // stays stuck on the app it first started with. type is pinned to 0
+            // ("Playing") to match the build() branch below, so the first game and
+            // later games render with the same verb.
             kizzyRPC.updateRPC(
                 CommonRpc(
                     name = AppUtils.getAppName(packageName),
-                    largeImage = RpcImage.ApplicationIcon(packageName, this@AppDetectionService),
+                    type = 0,
+                    largeImage = icon,
                     time = Timestamps(start = System.currentTimeMillis()),
                     packageName = packageName
                 ),
@@ -197,7 +211,7 @@ class AppDetectionService : Service() {
                 setName(AppUtils.getAppName(packageName))
                 setStartTimestamps(System.currentTimeMillis())
                 setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
-                setLargeImage(RpcImage.ApplicationIcon(packageName, this@AppDetectionService))
+                setLargeImage(icon)
                 if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
                     with(rpcButtons) {
                         setButton1(button1.takeIf { it.isNotEmpty() })
@@ -212,10 +226,7 @@ class AppDetectionService : Service() {
         notificationManager.notify(
             Constants.NOTIFICATION_ID, notificationBuilder
                 .setContentText(packageName)
-                .setLargeIcon(
-                    rpcImage = RpcImage.ApplicationIcon(packageName, this@AppDetectionService),
-                    context = this@AppDetectionService
-                )
+                .setLargeIcon(rpcImage = icon, context = this@AppDetectionService)
                 .build()
         )
     }

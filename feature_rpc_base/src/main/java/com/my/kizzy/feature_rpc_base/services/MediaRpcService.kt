@@ -22,7 +22,9 @@ import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.PowerManager.WakeLock
 import com.my.kizzy.data.get_current_data.media.GetCurrentPlayingMedia
@@ -166,33 +168,33 @@ class MediaRpcService : Service() {
 
     private val mediaControllerCallback = MediaControllerCallback()
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Re-registers the callback on the *current* active controller and refreshes the
+    // presence. Runs on the main looper and is NOT tied to `scope`, so a concurrent
+    // playback/metadata callback calling scope.cancelChildren() can never abort the
+    // (un)registration half-way (which previously left the new session unregistered).
+    private val reRegisterRunnable = Runnable {
+        val sessions = mediaSessionManager.getActiveSessions(
+            ComponentName(this@MediaRpcService, NotificationListener::class.java)
+        )
+        currentMediaController?.unregisterCallback(mediaControllerCallback)
+        currentMediaController = sessions.firstOrNull()
+        currentMediaController?.registerCallback(mediaControllerCallback)
+        scope.coroutineContext.cancelChildren()
+        scope.launch { updatePresence() }
+    }
+
     private fun activeSessionsListener(mediaSessions: List<MediaController>?, isEvent: Boolean = true) {
         logger.d("MediaRPC", "Active sessions changed")
 
-        // This listener is invoked on the main thread. The previous code blocked it
-        // with runBlocking { delay(1500) }, freezing the UI for 1.5s on every media
-        // session change. Do the wait and the presence update off the main thread; the
-        // callback (un)registration still has to run on the main looper.
-        scope.coroutineContext.cancelChildren()
-        scope.launch {
-            // The event is occasionally fired before the session list is actually updated.
-            if (isEvent) delay(1500)
-
-            withContext(Dispatchers.Main) {
-                if (mediaSessions?.isNotEmpty() == true) {
-                    currentMediaController?.unregisterCallback(mediaControllerCallback)
-                    currentMediaController = mediaSessionManager.getActiveSessions(
-                        ComponentName(this@MediaRpcService, NotificationListener::class.java)
-                    ).firstOrNull()
-                    currentMediaController?.registerCallback(mediaControllerCallback)
-                } else {
-                    currentMediaController?.unregisterCallback(mediaControllerCallback)
-                    currentMediaController = null
-                }
-            }
-
-            updatePresence()
-        }
+        // Debounce on the main looper. The event is occasionally fired before the
+        // session list is actually updated, so we wait 1.5s and re-query inside the
+        // runnable. This keeps the registration off the cancellable coroutine scope
+        // (fixes: a concurrent callback could cancel it and drop the registration)
+        // while still not blocking the main thread the way runBlocking{delay} did.
+        mainHandler.removeCallbacks(reRegisterRunnable)
+        mainHandler.postDelayed(reRegisterRunnable, if (isEvent) 1500L else 0L)
     }
 
     private inner class MediaControllerCallback: MediaController.Callback() {
@@ -245,6 +247,7 @@ class MediaRpcService : Service() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(reRegisterRunnable)
         mediaSessionManager.removeOnActiveSessionsChangedListener(::activeSessionsListener)
         currentMediaController?.unregisterCallback(mediaControllerCallback)
         scope.cancel()

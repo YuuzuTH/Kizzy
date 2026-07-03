@@ -340,7 +340,9 @@ class KizzyRPC(
                     )
                 ),
                 afk = true,
-                since = startTimestamps,
+                // Prefer the fresh start from the incoming update (e.g. an app switch)
+                // so `since` doesn't stay pinned to the first activity's start time.
+                since = commonRpc.time?.start ?: startTimestamps,
                 status = this.status
             )
         )
