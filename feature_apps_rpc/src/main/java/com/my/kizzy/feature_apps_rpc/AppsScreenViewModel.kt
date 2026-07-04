@@ -15,6 +15,8 @@ package com.my.kizzy.feature_apps_rpc
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.my.kizzy.data.rpc.AppRpcOverride
+import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.utils.getInstalledApps
 import com.my.kizzy.preference.Prefs
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,9 +50,22 @@ class AppsScreenViewModel @Inject constructor(
                 AppsState(
                     apps = appList,
                     isLoading = false,
-                    enabledApps = enabledApps
+                    enabledApps = enabledApps,
+                    overrides = AppRpcOverrides.all()
                 )
             }
+        }
+    }
+
+    /** Save (or clear, when both fields are blank) the per-app custom name/image. */
+    fun setOverride(pkg: String, name: String, imageUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val override = AppRpcOverride(
+                name = name.ifBlank { null },
+                imageUrl = imageUrl.ifBlank { null },
+            )
+            AppRpcOverrides.set(pkg, override)
+            _state.update { it.copy(overrides = AppRpcOverrides.all()) }
         }
     }
 

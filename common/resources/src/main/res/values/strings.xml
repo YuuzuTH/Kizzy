@@ -130,6 +130,11 @@
     <string name="update_install_permission">Allow Kizzy to install apps, then tap Update again.</string>
     <string name="update_failed">Download failed. Please try again.</string>
     <string name="update_retry">Retry</string>
+    <string name="app_override_title">Custom name &amp; image</string>
+    <string name="app_override_name">Custom name</string>
+    <string name="app_override_image">Custom image URL</string>
+    <string name="app_override_hint">Leave a field blank to use the app\'s real name / icon. The image URL must be a direct link to an image.</string>
+    <string name="app_override_clear">Clear</string>
     <string name="compact_mode">Compact Mode</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">Yes</string>

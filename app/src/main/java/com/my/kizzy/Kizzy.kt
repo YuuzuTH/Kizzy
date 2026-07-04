@@ -150,6 +150,7 @@ internal fun ComponentActivity.Kizzy(
                     hasUsageAccess = usageAccessStatus.value,
                     state = viewModel.state.collectAsState().value,
                     updateAppEnabled = viewModel::updateAppEnabled,
+                    onSetOverride = viewModel::setOverride,
                 )
             }
             animatedComposable(Routes.CUSTOM_RPC) {

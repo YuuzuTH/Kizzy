@@ -14,6 +14,7 @@ package com.my.kizzy.data.get_current_data.app
 
 import android.content.Context
 import com.blankj.utilcode.util.AppUtils
+import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.RpcImage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -26,10 +27,13 @@ class GetCurrentlyRunningApp @Inject constructor(
     operator fun invoke(): CommonRpc {
         val packageName = foregroundAppDetector.getForegroundPackage() ?: return CommonRpc()
         return CommonRpc(
-            name = AppUtils.getAppName(packageName),
+            name = AppRpcOverrides.displayName(packageName, AppUtils.getAppName(packageName)),
             details = null,
             state = null,
-            largeImage = RpcImage.ApplicationIcon(packageName, context),
+            largeImage = AppRpcOverrides.image(
+                packageName,
+                fallback = RpcImage.ApplicationIcon(packageName, context)
+            ),
             packageName = packageName
         )
     }

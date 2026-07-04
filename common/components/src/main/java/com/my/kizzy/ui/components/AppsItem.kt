@@ -14,6 +14,10 @@ package com.my.kizzy.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,6 +36,8 @@ fun AppsItem(
     pkg: String,
     isChecked: Boolean,
     onClick: () -> Unit = {},
+    onEditClick: (() -> Unit)? = null,
+    isCustomized: Boolean = false,
 ) {
     Surface(
         modifier = Modifier.clickable {
@@ -70,9 +76,19 @@ fun AppsItem(
                         style = MaterialTheme.typography.bodyMedium,
                     )
             }
+            if (onEditClick != null) {
+                IconButton(onClick = onEditClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Customize",
+                        tint = if (isCustomized) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             KSwitch(
                 checked = isChecked,
-                modifier = Modifier.padding(start = 20.dp, end = 6.dp),
+                modifier = Modifier.padding(start = 8.dp, end = 6.dp),
             )
         }
     }

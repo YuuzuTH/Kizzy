@@ -25,6 +25,7 @@ import android.os.IBinder
 import android.util.Log
 import com.blankj.utilcode.util.AppUtils
 import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
+import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcImage
@@ -177,6 +178,10 @@ class AppDetectionService : Service() {
         // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
         // it several times per switch repeats that work for nothing.
         val icon = RpcImage.ApplicationIcon(packageName, this@AppDetectionService)
+        // Per-app user overrides: a custom display name and/or a custom image. The
+        // notification keeps the real app icon; only the Discord presence is overridden.
+        val displayName = AppRpcOverrides.displayName(packageName, AppUtils.getAppName(packageName))
+        val rpcImage = AppRpcOverrides.image(packageName, fallback = icon)
         if (kizzyRPC.isRpcRunning()) {
             // A presence is already running for the previous app. Update it in place
             // so switching games immediately reflects the new one — otherwise the RPC
@@ -185,9 +190,9 @@ class AppDetectionService : Service() {
             // later games render with the same verb.
             kizzyRPC.updateRPC(
                 CommonRpc(
-                    name = AppUtils.getAppName(packageName),
+                    name = displayName,
                     type = 0,
-                    largeImage = icon,
+                    largeImage = rpcImage,
                     time = Timestamps(start = System.currentTimeMillis()),
                     packageName = packageName
                 ),
@@ -195,10 +200,10 @@ class AppDetectionService : Service() {
             )
         } else {
             kizzyRPC.apply {
-                setName(AppUtils.getAppName(packageName))
+                setName(displayName)
                 setStartTimestamps(System.currentTimeMillis())
                 setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
-                setLargeImage(icon)
+                setLargeImage(rpcImage)
                 if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
                     with(rpcButtons) {
                         setButton1(button1.takeIf { it.isNotEmpty() })

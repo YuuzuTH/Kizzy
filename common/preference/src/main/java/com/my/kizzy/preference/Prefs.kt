@@ -144,6 +144,7 @@ object Prefs {
     const val ENABLED_APPS = "enabled_apps"
     const val ENABLED_MEDIA_APPS = "enabled_media_apps"
     const val ENABLED_EXPERIMENTAL_APPS = "enabled_experimental_apps"
+    const val APP_RPC_OVERRIDES = "app_rpc_overrides" //Json Map<packageName, {name,imageUrl}> custom name/image per app
 
     //Media Rpc Preferences
     const val MEDIA_RPC_ARTIST_NAME = "media_rpc_artist_name"

@@ -133,6 +133,11 @@
     <string name="update_install_permission">อนุญาตให้ Kizzy ติดตั้งแอพก่อน แล้วกดอัปเดตอีกครั้ง</string>
     <string name="update_failed">ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่</string>
     <string name="update_retry">ลองใหม่</string>
+    <string name="app_override_title">ตั้งชื่อ &amp; รูปเอง</string>
+    <string name="app_override_name">ชื่อที่กำหนดเอง</string>
+    <string name="app_override_image">ลิงก์รูปที่กำหนดเอง</string>
+    <string name="app_override_hint">เว้นว่างไว้เพื่อใช้ชื่อ/ไอคอนจริงของแอพ ลิงก์รูปต้องเป็นลิงก์ตรงไปยังไฟล์รูป</string>
+    <string name="app_override_clear">ล้างค่า</string>
     <string name="compact_mode">โหมดกะทัดรัด</string>
     <string name="are_you_sure">ยืนยันหรือไม่?</string>
     <string name="yes">ใช่</string>
