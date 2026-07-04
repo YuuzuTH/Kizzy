@@ -20,10 +20,14 @@ import com.my.kizzy.data.remote.Github
 import com.my.kizzy.data.remote.Imgur
 import com.my.kizzy.data.remote.ImgurApiService
 import com.my.kizzy.data.repository.KizzyRepositoryImpl
+import com.my.kizzy.data.update.AppUpdaterImpl
+import com.my.kizzy.domain.repository.AppUpdater
 import com.my.kizzy.domain.repository.KizzyRepository
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -98,5 +102,14 @@ object AppModule {
         imgurApiService: ImgurApiService
     ): KizzyRepository {
         return KizzyRepositoryImpl(apiService, imgurApiService)
+    }
+
+    @Provides
+    @Singleton
+    fun providesAppUpdater(
+        client: HttpClient,
+        @ApplicationContext context: Context
+    ): AppUpdater {
+        return AppUpdaterImpl(client, context)
     }
 }

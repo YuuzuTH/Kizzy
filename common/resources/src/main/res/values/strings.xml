@@ -125,6 +125,11 @@
     <string name="request_for_notification_access">Notification Access is needed for app to extract media information.</string>
     <string name="update_check_for_update">Checking for update…</string>
     <string name="update_no_updates_available">No updates available</string>
+    <string name="update_downloading">Downloading…</string>
+    <string name="update_installing">Download complete. Opening installer…</string>
+    <string name="update_install_permission">Allow Kizzy to install apps, then tap Update again.</string>
+    <string name="update_failed">Download failed. Please try again.</string>
+    <string name="update_retry">Retry</string>
     <string name="compact_mode">Compact Mode</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">Yes</string>

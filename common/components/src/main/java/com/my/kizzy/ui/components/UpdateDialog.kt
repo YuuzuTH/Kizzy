@@ -14,6 +14,7 @@ package com.my.kizzy.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -23,37 +24,39 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.resources.R
 
 fun Int.formatSize(): String =
     (this / 1024f / 1024f)
         .takeIf { it > 0f }
         ?.run { " ${String.format("%.2f", this)} MB" } ?: ""
+
 @Composable
 fun UpdateDialog(
     modifier: Modifier = Modifier,
     newVersionPublishDate: String,
     newVersionSize: Int,
     newVersionLog: String,
+    downloadState: UpdateDownloadState = UpdateDownloadState.Idle,
+    onUpdate: () -> Unit = {},
     onDismissRequest: () -> Unit = {}
 ) {
-    val uriHandler = LocalUriHandler.current
-    val openUrl: (url: String) -> Unit = {
-        uriHandler.openUri(it)
-    }
+    val busy = downloadState is UpdateDownloadState.Downloading ||
+            downloadState is UpdateDownloadState.Installing
     AlertDialog(
         modifier = modifier,
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!busy) onDismissRequest() },
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Update,
@@ -75,32 +78,89 @@ fun UpdateDialog(
             }
         },
         text = {
-            SelectionContainer {
-                Text(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    text = newVersionLog,
-                )
+            Column {
+                SelectionContainer {
+                    Text(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        text = newVersionLog,
+                    )
+                }
+                UpdateProgressFooter(downloadState)
             }
         },
         confirmButton = {
             TextButton(
-                onClick = {
-                    openUrl("https://github.com/YuuzuTH/Kizzy/releases/latest")
-                }
+                enabled = !busy,
+                onClick = onUpdate
             ) {
                 Text(
-                    text = stringResource(R.string.update)
+                    text = stringResource(
+                        when (downloadState) {
+                            is UpdateDownloadState.Failed,
+                            is UpdateDownloadState.PermissionRequired -> R.string.update_retry
+                            else -> R.string.update
+                        }
+                    )
                 )
             }
         },
         dismissButton = {
-                TextButton(
-                    onClick = onDismissRequest
-                ) {
-                    Text(text = stringResource(R.string.cancel))
-                }
+            TextButton(
+                enabled = !busy,
+                onClick = onDismissRequest
+            ) {
+                Text(text = stringResource(R.string.cancel))
+            }
         },
     )
+}
+
+@Composable
+private fun UpdateProgressFooter(downloadState: UpdateDownloadState) {
+    when (downloadState) {
+        is UpdateDownloadState.Downloading -> {
+            Spacer(modifier = Modifier.height(16.dp))
+            LinearProgressIndicator(
+                progress = { downloadState.progress },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "${stringResource(R.string.update_downloading)} " +
+                        "${(downloadState.progress * 100).toInt()}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
+
+        is UpdateDownloadState.Installing -> {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.update_installing),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        is UpdateDownloadState.PermissionRequired -> {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.update_install_permission),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        is UpdateDownloadState.Failed -> {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.update_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        UpdateDownloadState.Idle -> {}
+    }
 }
 
 @Preview

@@ -69,6 +69,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.my.kizzy.domain.model.toVersion
+import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.domain.model.user.User
 import com.my.kizzy.feature_home.feature.Features
 import com.my.kizzy.feature_home.feature.HomeFeature
@@ -85,6 +86,8 @@ import kotlinx.coroutines.launch
 fun Home(
     state: HomeScreenState,
     checkForUpdates: () -> Unit,
+    downloadState: UpdateDownloadState = UpdateDownloadState.Idle,
+    onDownloadUpdate: (downloadUrl: String, versionName: String) -> Unit = { _, _ -> },
     showBadge: Boolean,
     features: List<HomeFeature>,
     user: User?,
@@ -274,10 +277,23 @@ fun Home(
                                 .whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
                         ) {
                             with(state.release) {
+                                val apkAsset = assets?.firstOrNull {
+                                    it?.name?.endsWith(".apk") == true
+                                } ?: assets?.getOrNull(0)
                                 UpdateDialog(
                                     newVersionPublishDate = publishedAt ?: "",
-                                    newVersionSize = assets?.getOrNull(0)?.size ?: 0,
+                                    newVersionSize = apkAsset?.size ?: 0,
                                     newVersionLog = body ?: "",
+                                    downloadState = downloadState,
+                                    onUpdate = {
+                                        val url = apkAsset?.browserDownloadUrl
+                                        if (url != null) {
+                                            onDownloadUpdate(
+                                                url,
+                                                (tagName ?: "").removePrefix("v")
+                                            )
+                                        }
+                                    },
                                     onDismissRequest = {
                                         showUpdateDialog = false
                                     },

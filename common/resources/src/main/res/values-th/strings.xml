@@ -128,6 +128,11 @@
     <string name="request_for_notification_access">แอปต้องใช้สิทธิ์การเข้าถึงการแจ้งเตือนเพื่อดึงข้อมูลสื่อที่กำลังเล่น</string>
     <string name="update_check_for_update">กำลังตรวจสอบอัปเดต…</string>
     <string name="update_no_updates_available">ไม่มีอัปเดตใหม่</string>
+    <string name="update_downloading">กำลังดาวน์โหลด…</string>
+    <string name="update_installing">ดาวน์โหลดเสร็จ กำลังเปิดตัวติดตั้ง…</string>
+    <string name="update_install_permission">อนุญาตให้ Kizzy ติดตั้งแอพก่อน แล้วกดอัปเดตอีกครั้ง</string>
+    <string name="update_failed">ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่</string>
+    <string name="update_retry">ลองใหม่</string>
     <string name="compact_mode">โหมดกะทัดรัด</string>
     <string name="are_you_sure">ยืนยันหรือไม่?</string>
     <string name="yes">ใช่</string>

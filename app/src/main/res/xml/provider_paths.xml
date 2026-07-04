@@ -7,4 +7,8 @@
     <external-path
         name="downloads"
         path="Download/" />
+
+    <cache-path
+        name="update_cache"
+        path="updates/" />
 </paths>

@@ -97,6 +97,7 @@ internal fun ComponentActivity.Kizzy(
                 val user = Prefs.getUser()
                 val viewModel by viewModels<HomeScreenViewModel>()
                 val state = viewModel.aboutScreenState.collectAsState().value
+                val downloadState = viewModel.downloadState.collectAsState().value
                 val showBadge = release
                     ?.toVersion()
                     ?.whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
@@ -109,6 +110,10 @@ internal fun ComponentActivity.Kizzy(
                         } else {
                             viewModel.getLatestUpdate()
                         }
+                    },
+                    downloadState = downloadState,
+                    onDownloadUpdate = { url, versionName ->
+                        viewModel.downloadUpdate(url, versionName)
                     },
                     showBadge = showBadge,
                     features = homeFeaturesProvider(

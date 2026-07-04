@@ -9,6 +9,7 @@ android {
 
 dependencies {
     implementation (projects.theme)
+    implementation (projects.domain)
     implementation (libs.material3)
     implementation (projects.color)
     implementation (libs.android.svg)
