@@ -216,12 +216,15 @@ class AppDetectionService : Service() {
         )
 
         // Per-app buttons win; otherwise fall back to the global buttons (when enabled).
+        // Locals so nullability is smart-castable (the fields live in another module).
+        val b1Text = rpc.button1Text; val b1Url = rpc.button1Url
+        val b2Text = rpc.button2Text; val b2Url = rpc.button2Url
         val buttons: List<RpcButton>? = when {
             rpc.hasButtons -> buildList {
-                if (!rpc.button1Text.isNullOrBlank() && !rpc.button1Url.isNullOrBlank())
-                    add(RpcButton(rpc.button1Text, rpc.button1Url))
-                if (!rpc.button2Text.isNullOrBlank() && !rpc.button2Url.isNullOrBlank())
-                    add(RpcButton(rpc.button2Text, rpc.button2Url))
+                if (!b1Text.isNullOrBlank() && !b1Url.isNullOrBlank())
+                    add(RpcButton(b1Text, b1Url))
+                if (!b2Text.isNullOrBlank() && !b2Url.isNullOrBlank())
+                    add(RpcButton(b2Text, b2Url))
             }.takeIf { it.isNotEmpty() }
 
             Prefs[Prefs.USE_RPC_BUTTONS, false] -> buildList {
