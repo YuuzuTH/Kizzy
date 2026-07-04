@@ -18,14 +18,13 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.app.usage.UsageStats
-import android.app.usage.UsageStatsManager
 import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.blankj.utilcode.util.AppUtils
+import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcImage
@@ -43,8 +42,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import java.util.SortedMap
-import java.util.TreeMap
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -61,6 +58,9 @@ class AppDetectionService : Service() {
 
     @Inject
     lateinit var notificationManager: NotificationManager
+
+    @Inject
+    lateinit var foregroundAppDetector: ForegroundAppDetector
 
     private lateinit var pendingIntent: PendingIntent
 
@@ -132,13 +132,9 @@ class AppDetectionService : Service() {
                         runningPackage = ""
                     }
 
-                    val queryUsageStats = getUsageStats()
-
-                    if (queryUsageStats != null && queryUsageStats.size > 1) {
-                        val packageName = getLatestPackageName(queryUsageStats)
-                        if (packageName != null && packageName !in EXCLUDED_APPS) {
-                            handleValidPackage(packageName, enabledPackages, rpcButtons)
-                        }
+                    val packageName = foregroundAppDetector.getForegroundPackage()
+                    if (packageName != null) {
+                        handleValidPackage(packageName, enabledPackages, rpcButtons)
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -160,24 +156,6 @@ class AppDetectionService : Service() {
     private fun getRpcButtons(): RpcButtons {
         val rpcButtonsString = Prefs[Prefs.RPC_BUTTONS_DATA, "{}"]
         return Json.decodeFromString(rpcButtonsString)
-    }
-
-    private fun getUsageStats(): List<UsageStats>? {
-        val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
-        val currentTimeMillis = System.currentTimeMillis()
-        return usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            currentTimeMillis - 10000,
-            currentTimeMillis
-        )
-    }
-
-    private fun getLatestPackageName(usageStats: List<UsageStats>): String? {
-        val treeMap: SortedMap<Long, UsageStats> = TreeMap()
-        for (usageStatsItem in usageStats) {
-            treeMap[usageStatsItem.lastTimeUsed] = usageStatsItem
-        }
-        return treeMap.lastKey()?.let { treeMap[it]?.packageName }
     }
 
     private suspend fun handleValidPackage(
@@ -270,9 +248,5 @@ class AppDetectionService : Service() {
 
     private fun createPendingIntent(stopIntent: Intent): PendingIntent {
         return PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
-    }
-
-    companion object {
-        val EXCLUDED_APPS = listOf("com.my.kizzy", "com.discord")
     }
 }
