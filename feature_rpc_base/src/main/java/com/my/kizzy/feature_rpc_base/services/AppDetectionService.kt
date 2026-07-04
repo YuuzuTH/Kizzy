@@ -28,6 +28,7 @@ import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
 import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcButton
 import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.data.rpc.RpcImage
 import com.my.kizzy.data.rpc.Timestamps
@@ -142,6 +143,12 @@ class AppDetectionService : Service() {
         observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
 
         val rpcButtons = getRpcButtons()
+        // User-selected detection sensitivity: Fast 2s / Normal 5s / Battery 10s. Read once
+        // per (re)start; changing it takes effect after the service is restarted.
+        val pollInterval = Prefs[
+            Prefs.APP_DETECTION_POLL_INTERVAL,
+            Prefs.APP_DETECTION_POLL_DEFAULT
+        ].toLong().coerceIn(1000L, 60000L)
 
         scope.launch {
             while (isActive) {
@@ -164,7 +171,7 @@ class AppDetectionService : Service() {
                     // icon) must not kill the detection loop permanently
                     Log.e("AppDetectionService", "Detection cycle failed: ${e.message}")
                 }
-                delay(2000)
+                delay(pollInterval)
             }
         }
     }
@@ -198,41 +205,77 @@ class AppDetectionService : Service() {
         // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
         // it several times per switch repeats that work for nothing.
         val icon = RpcImage.ApplicationIcon(packageName, this@AppDetectionService)
-        // Per-app user overrides: a custom display name and/or a custom image. The
-        // notification keeps the real app icon; only the Discord presence is overridden.
-        val (displayName, rpcImage) = AppRpcOverrides.resolve(
+        // Full per-app override: name, image, details/state, activity type, extra image,
+        // buttons, streaming url and timestamp toggle all merged with the app's real
+        // name/icon defaults. The notification keeps the real app icon; only the Discord
+        // presence reflects the override.
+        val rpc = AppRpcOverrides.resolveFull(
             packageName,
             defaultName = AppUtils.getAppName(packageName),
             fallbackImage = icon
         )
+
+        // Per-app buttons win; otherwise fall back to the global buttons (when enabled).
+        val buttons: List<RpcButton>? = when {
+            rpc.hasButtons -> buildList {
+                if (!rpc.button1Text.isNullOrBlank() && !rpc.button1Url.isNullOrBlank())
+                    add(RpcButton(rpc.button1Text, rpc.button1Url))
+                if (!rpc.button2Text.isNullOrBlank() && !rpc.button2Url.isNullOrBlank())
+                    add(RpcButton(rpc.button2Text, rpc.button2Url))
+            }.takeIf { it.isNotEmpty() }
+
+            Prefs[Prefs.USE_RPC_BUTTONS, false] -> buildList {
+                if (rpcButtons.button1.isNotEmpty() && rpcButtons.button1Url.isNotEmpty())
+                    add(RpcButton(rpcButtons.button1, rpcButtons.button1Url))
+                if (rpcButtons.button2.isNotEmpty() && rpcButtons.button2Url.isNotEmpty())
+                    add(RpcButton(rpcButtons.button2, rpcButtons.button2Url))
+            }.takeIf { it.isNotEmpty() }
+
+            else -> null
+        }
+
+        val startTime = System.currentTimeMillis()
+
         if (kizzyRPC.isRpcRunning()) {
-            // A presence is already running for the previous app. Update it in place
-            // so switching games immediately reflects the new one — otherwise the RPC
-            // stays stuck on the app it first started with. type is pinned to 0
-            // ("Playing") to match the build() branch below, so the first game and
-            // later games render with the same verb.
+            // A presence is already running for the previous app. Update it in place so
+            // switching games immediately reflects the new one — otherwise the RPC stays
+            // stuck on the app it first started with.
             kizzyRPC.updateRPC(
                 CommonRpc(
-                    name = displayName,
-                    type = 0,
-                    largeImage = rpcImage,
-                    time = Timestamps(start = System.currentTimeMillis()),
-                    packageName = packageName
+                    name = rpc.name,
+                    type = rpc.activityType,
+                    details = rpc.details,
+                    state = rpc.state,
+                    largeImage = rpc.largeImage,
+                    smallImage = rpc.smallImage,
+                    largeText = rpc.largeText,
+                    smallText = rpc.smallText,
+                    time = Timestamps(start = startTime).takeIf { rpc.showTimestamps },
+                    packageName = packageName,
+                    // Always explicit (empty = no buttons) so switching to an app without
+                    // buttons clears the previous app's instead of inheriting them.
+                    buttons = buttons ?: emptyList(),
+                    streamUrl = rpc.streamUrl
                 ),
-                enableTimestamps = true
+                enableTimestamps = rpc.showTimestamps
             )
         } else {
             kizzyRPC.apply {
-                setName(displayName)
-                setStartTimestamps(System.currentTimeMillis())
+                setName(rpc.name)
+                setType(rpc.activityType)
+                setDetails(rpc.details)
+                setState(rpc.state)
+                if (rpc.showTimestamps) setStartTimestamps(startTime)
                 setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
-                setLargeImage(rpcImage)
-                if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
-                    with(rpcButtons) {
-                        setButton1(button1.takeIf { it.isNotEmpty() })
-                        setButton1URL(button1Url.takeIf { it.isNotEmpty() })
-                        setButton2(button2.takeIf { it.isNotEmpty() })
-                        setButton2URL(button2Url.takeIf { it.isNotEmpty() })
+                setLargeImage(rpc.largeImage, rpc.largeText)
+                setSmallImage(rpc.smallImage, rpc.smallText)
+                setStreamUrl(rpc.streamUrl)
+                buttons?.forEachIndexed { index, btn ->
+                    // Builder keeps two parallel lists; add label + url together.
+                    if (index == 0) {
+                        setButton1(btn.label); setButton1URL(btn.url)
+                    } else {
+                        setButton2(btn.label); setButton2URL(btn.url)
                     }
                 }
                 build()

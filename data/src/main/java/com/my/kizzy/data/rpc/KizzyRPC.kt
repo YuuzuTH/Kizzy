@@ -329,6 +329,17 @@ class KizzyRPC(
         if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
             Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize)).also { party = it }
         val effectiveType = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0]
+        // Per-call buttons win when provided (App Detection per-app overrides); otherwise fall
+        // back to whatever was set on the builder — keeps Media/Experimental byte-identical.
+        val effectiveButtonLabels: List<String>
+        val effectiveButtonUrls: List<String>
+        if (commonRpc.buttons != null) {
+            effectiveButtonLabels = commonRpc.buttons.map { it.label }
+            effectiveButtonUrls = commonRpc.buttons.map { it.url }
+        } else {
+            effectiveButtonLabels = buttons
+            effectiveButtonUrls = buttonUrl
+        }
         discordWebSocket.sendActivity(
             Presence(
                 activities = listOf(
@@ -346,10 +357,11 @@ class KizzyRPC(
                                 smallText = commonRpc.smallText?.sanitize()
                             ).takeIf { commonRpc.largeImage != null || commonRpc.smallImage != null },
                         party = party.takeIf { party != null },
-                        buttons = buttons.takeIf { buttons.size > 0 },
-                        metadata = Metadata(buttonUrls = buttonUrl).takeIf { buttonUrl.size > 0 },
-                        applicationId = applicationIdFor(effectiveType)
-
+                        buttons = effectiveButtonLabels.takeIf { it.isNotEmpty() },
+                        metadata = Metadata(buttonUrls = effectiveButtonUrls).takeIf { effectiveButtonUrls.isNotEmpty() },
+                        applicationId = applicationIdFor(effectiveType),
+                        // Streaming URL only renders for type 1; carried per-call for App Detection.
+                        url = commonRpc.streamUrl ?: url
                     )
                 ),
                 afk = true,

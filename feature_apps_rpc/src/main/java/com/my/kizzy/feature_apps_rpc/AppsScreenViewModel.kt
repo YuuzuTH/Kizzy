@@ -57,14 +57,18 @@ class AppsScreenViewModel @Inject constructor(
         }
     }
 
-    /** Save (or clear, when both fields are blank) the per-app custom name/image. */
-    fun setOverride(pkg: String, name: String, imageUrl: String) {
+    /** Save (or clear, when the override is empty) the full per-app presence customization. */
+    fun setOverride(pkg: String, override: AppRpcOverride) {
         viewModelScope.launch(Dispatchers.IO) {
-            val override = AppRpcOverride(
-                name = name.ifBlank { null },
-                imageUrl = imageUrl.ifBlank { null },
-            )
             AppRpcOverrides.set(pkg, override)
+            _state.update { it.copy(overrides = AppRpcOverrides.all()) }
+        }
+    }
+
+    /** Remove any customization for [pkg]. */
+    fun clearOverride(pkg: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            AppRpcOverrides.remove(pkg)
             _state.update { it.copy(overrides = AppRpcOverrides.all()) }
         }
     }

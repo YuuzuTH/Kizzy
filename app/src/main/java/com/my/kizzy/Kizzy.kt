@@ -151,6 +151,7 @@ internal fun ComponentActivity.Kizzy(
                     state = viewModel.state.collectAsState().value,
                     updateAppEnabled = viewModel::updateAppEnabled,
                     onSetOverride = viewModel::setOverride,
+                    onClearOverride = viewModel::clearOverride,
                 )
             }
             animatedComposable(Routes.CUSTOM_RPC) {

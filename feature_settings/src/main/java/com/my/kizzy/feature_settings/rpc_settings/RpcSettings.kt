@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.SmartButton
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -94,6 +95,12 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
         mutableStateOf(false)
     }
     var showActivityStatusDialog by remember {
+        mutableStateOf(false)
+    }
+    var detectionInterval by remember {
+        mutableStateOf(Prefs[Prefs.APP_DETECTION_POLL_INTERVAL, Prefs.APP_DETECTION_POLL_DEFAULT])
+    }
+    var showDetectionSensitivityDialog by remember {
         mutableStateOf(false)
     }
     var showApplicationIdDialog by remember {
@@ -170,6 +177,15 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                     icon = Icons.Default.DoNotDisturbOn
                 ) {
                     showActivityStatusDialog = true
+                }
+            }
+            item {
+                SettingItem(
+                    title = stringResource(id = R.string.app_detection_sensitivity),
+                    description = stringResource(id = detectionSensitivityLabel(detectionInterval)),
+                    icon = Icons.Default.Speed
+                ) {
+                    showDetectionSensitivityDialog = true
                 }
             }
             item {
@@ -418,6 +434,34 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
             )
         }
 
+        if (showDetectionSensitivityDialog) {
+            AlertDialog(
+                onDismissRequest = { showDetectionSensitivityDialog = false },
+                confirmButton = {},
+                icon = { Icon(imageVector = Icons.Default.Speed, contentDescription = null) },
+                title = { Text(stringResource(R.string.app_detection_sensitivity)) },
+                text = {
+                    Column {
+                        // (interval ms, label). Restarting App Detection applies the change.
+                        listOf(
+                            2000 to R.string.detection_fast,
+                            5000 to R.string.detection_normal,
+                            10000 to R.string.detection_battery,
+                        ).forEach { (interval, labelRes) ->
+                            SingleChoiceItem(
+                                text = stringResource(labelRes),
+                                selected = detectionInterval == interval
+                            ) {
+                                detectionInterval = interval
+                                Prefs[Prefs.APP_DETECTION_POLL_INTERVAL] = interval
+                                showDetectionSensitivityDialog = false
+                            }
+                        }
+                    }
+                }
+            )
+        }
+
         if (showApplicationIdDialog) {
             AlertDialog(
                 onDismissRequest = {
@@ -496,4 +540,11 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
             )
         }
     }
+}
+
+/** Label for the currently selected App-Detection poll interval. */
+private fun detectionSensitivityLabel(intervalMs: Int): Int = when {
+    intervalMs <= 2000 -> R.string.detection_fast
+    intervalMs <= 5000 -> R.string.detection_normal
+    else -> R.string.detection_battery
 }

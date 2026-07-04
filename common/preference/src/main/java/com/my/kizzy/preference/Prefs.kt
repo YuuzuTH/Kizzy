@@ -179,6 +179,10 @@ object Prefs {
     const val CUSTOM_THEME_COLOR = "custom_theme_color"
     const val IS_FIRST_LAUNCHED = "is_first_launched"
     const val CUSTOM_ACTIVITY_TYPE = "custom_activity_type"
+    // App-Detection poll interval in milliseconds (how often it re-checks the foreground app).
+    // Fast 2s / Normal 5s / Battery-saver 10s. Default = Fast (matches the previous hardcoded 2s).
+    const val APP_DETECTION_POLL_INTERVAL = "app_detection_poll_interval"
+    const val APP_DETECTION_POLL_DEFAULT = 2000
     const val SHOW_LOGS_IN_COMPACT_MODE = "logs_compact_mode"
     const val LOGS_AUTO_SCROLL = "logs_auto_scroll"
 

@@ -56,6 +56,7 @@ import com.my.kizzy.feature_rpc_base.services.AppDetectionService
 import com.my.kizzy.feature_rpc_base.services.CustomRpcService
 import com.my.kizzy.feature_rpc_base.services.ExperimentalRpc
 import com.my.kizzy.feature_rpc_base.services.MediaRpcService
+import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.resources.R
 import com.my.kizzy.ui.components.AppOverrideDialog
 import com.my.kizzy.ui.components.AppsItem
@@ -72,7 +73,8 @@ fun AppsRPC(
     updateAppEnabled: (String) -> Unit,
     onBackPressed: () -> Unit,
     hasUsageAccess: Boolean,
-    onSetOverride: (pkg: String, name: String, imageUrl: String) -> Unit = { _, _, _ -> },
+    onSetOverride: (pkg: String, override: AppRpcOverride) -> Unit = { _, _ -> },
+    onClearOverride: (pkg: String) -> Unit = { },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState(),
@@ -169,6 +171,19 @@ fun AppsRPC(
                             }
                         }
                     }
+                    if (state.overrides.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(
+                                    id = R.string.apps_configured_summary,
+                                    state.overrides.size
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
                     items(
                         state.apps.size,
                         key = { idx -> state.apps[idx].pkg }
@@ -194,18 +209,17 @@ fun AppsRPC(
             }
 
             editingPkg?.let { pkg ->
-                val override = state.overrides[pkg]
+                val override = state.overrides[pkg] ?: AppRpcOverride()
                 val appName = state.apps.firstOrNull { it.pkg == pkg }?.name ?: pkg
                 AppOverrideDialog(
                     appName = appName,
-                    initialName = override?.name ?: "",
-                    initialImageUrl = override?.imageUrl ?: "",
-                    onSave = { name, imageUrl ->
-                        onSetOverride(pkg, name, imageUrl)
+                    initial = override,
+                    onSave = { newOverride ->
+                        onSetOverride(pkg, newOverride)
                         editingPkg = null
                     },
                     onClear = {
-                        onSetOverride(pkg, "", "")
+                        onClearOverride(pkg)
                         editingPkg = null
                     },
                     onDismissRequest = { editingPkg = null },
