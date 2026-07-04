@@ -12,6 +12,8 @@
 
 package com.my.kizzy.feature_console_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.content.Intent
 import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
@@ -179,34 +181,14 @@ fun GamesScreen(
                                     if (intent.hasExtra("RPC")) {
                                         Prefs[Prefs.LAST_RUN_CONSOLE_RPC] =
                                             intent.getStringExtra("RPC")
-                                        context.stopService(
-                                            Intent(
-                                                context,
-                                                AppDetectionService::class.java
-                                            )
-                                        )
-                                        context.stopService(
-                                            Intent(
-                                                context,
-                                                MediaRpcService::class.java
-                                            )
-                                        )
-                                        context.stopService(
-                                            Intent(
-                                                context,
-                                                ExperimentalRpc::class.java
-                                            )
-                                        )
+                                        context.stopRpcService(AppDetectionService::class.java)
+                                        context.stopRpcService(MediaRpcService::class.java)
+                                        context.stopRpcService(ExperimentalRpc::class.java)
                                         context.startService(intent)
                                     }
                                 }
 
-                                false -> context.stopService(
-                                    Intent(
-                                        context,
-                                        CustomRpcService::class.java
-                                    )
-                                )
+                                false -> context.stopRpcService(CustomRpcService::class.java)
                             }
                         }
                         LazyColumn {

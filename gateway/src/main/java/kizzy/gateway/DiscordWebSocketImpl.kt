@@ -29,7 +29,10 @@ open class DiscordWebSocketImpl(
     // Invoked when Discord rejects the token (gateway close 4004). Lets the host
     // clear the stored token so the app can prompt a re-login instead of appearing
     // to work while nothing ever shows up on Discord.
-    private val onAuthenticationFailed: () -> Unit = {}
+    private val onAuthenticationFailed: () -> Unit = {},
+    // Invoked on every coarse connection-state change so the host can surface a
+    // "reconnecting…" status instead of the presence appearing frozen.
+    private val onConnectionStateChanged: (ConnectionState) -> Unit = {}
 ) : DiscordWebSocket {
     private val gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json"
     private var websocket: DefaultClientWebSocketSession? = null
@@ -114,6 +117,7 @@ open class DiscordWebSocketImpl(
 
     private suspend fun scheduleReconnect(epoch: Int) {
         if (deliberateClose || epoch != connectEpoch) return
+        onConnectionStateChanged(ConnectionState.RECONNECTING)
         heartbeatJob?.cancel()
         connected = false
         runCatching { websocket?.close() }
@@ -157,6 +161,7 @@ open class DiscordWebSocketImpl(
                 connected = true
                 // Only a confirmed session counts as a successful reconnect
                 reconnectAttempts = 0
+                onConnectionStateChanged(ConnectionState.CONNECTED)
                 resendLastPresence()
                 return
             }
@@ -164,6 +169,7 @@ open class DiscordWebSocketImpl(
                 logger.i("Gateway","Session Resumed")
                 connected = true
                 reconnectAttempts = 0
+                onConnectionStateChanged(ConnectionState.CONNECTED)
                 resendLastPresence()
             }
             else -> {}

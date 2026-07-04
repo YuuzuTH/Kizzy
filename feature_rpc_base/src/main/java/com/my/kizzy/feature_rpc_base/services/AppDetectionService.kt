@@ -28,16 +28,22 @@ import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
 import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.data.rpc.RpcImage
 import com.my.kizzy.data.rpc.Timestamps
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
+import com.my.kizzy.feature_rpc_base.forgetActiveService
+import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
+import com.my.kizzy.feature_rpc_base.observeConnectionStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -63,6 +69,12 @@ class AppDetectionService : Service() {
     @Inject
     lateinit var foregroundAppDetector: ForegroundAppDetector
 
+    @Inject
+    lateinit var rpcConnectionState: RpcConnectionState
+
+    // Separate from `scope` so it survives the detection loop's lifecycle; cancelled in onDestroy.
+    private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private lateinit var pendingIntent: PendingIntent
 
     private lateinit var restartPendingIntent: PendingIntent
@@ -71,6 +83,8 @@ class AppDetectionService : Service() {
     override fun onBind(intent: Intent): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            // User tapped Stop — don't auto-start this again on the next boot.
+            forgetActiveService(javaClass.name)
             stopSelf()
         } else if (intent?.action == Constants.ACTION_RESTART_SERVICE) {
             stopSelf()
@@ -84,6 +98,7 @@ class AppDetectionService : Service() {
     }
 
     override fun onDestroy() {
+        connectionScope.cancel()
         scope.cancel()
         kizzyRPC.closeRPC()
         super.onDestroy()
@@ -120,6 +135,11 @@ class AppDetectionService : Service() {
             stopSelf()
             return
         }
+        // Went foreground successfully — mark this as the service to bring back after a reboot.
+        rememberActiveService(this)
+        // Surface "reconnecting…" in the notification if the gateway drops mid-session.
+        rpcConnectionState.reset()
+        observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
 
         val rpcButtons = getRpcButtons()
 

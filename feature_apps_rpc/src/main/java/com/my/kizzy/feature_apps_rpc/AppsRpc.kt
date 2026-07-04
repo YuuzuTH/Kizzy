@@ -14,6 +14,8 @@
 
 package com.my.kizzy.feature_apps_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.provider.Settings
@@ -157,18 +159,13 @@ fun AppsRPC(
                             serviceEnabled = !serviceEnabled
                             when (serviceEnabled) {
                                 true -> {
-                                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
-                                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
+                                    ctx.stopRpcService(MediaRpcService::class.java)
+                                    ctx.stopRpcService(CustomRpcService::class.java)
+                                    ctx.stopRpcService(ExperimentalRpc::class.java)
                                     ctx.startService(Intent(ctx, AppDetectionService::class.java))
                                 }
 
-                                false -> ctx.stopService(
-                                    Intent(
-                                        ctx,
-                                        AppDetectionService::class.java
-                                    )
-                                )
+                                false -> ctx.stopRpcService(AppDetectionService::class.java)
                             }
                         }
                     }

@@ -13,6 +13,7 @@
 package com.my.kizzy.data.di
 
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.repository.KizzyRepository
 import com.my.kizzy.preference.Prefs
@@ -31,13 +32,19 @@ import kotlinx.coroutines.SupervisorJob
 object ServiceModule {
     @Provides
     fun providesDiscordWebsocket(
-        logger: Logger
+        logger: Logger,
+        connectionState: RpcConnectionState
     ): DiscordWebSocket =
-        DiscordWebSocketImpl(Prefs[Prefs.TOKEN, ""], logger) {
-            // Token rejected by Discord (close 4004) — drop it so the UI falls back to the
-            // "not logged in" state and the user knows to log in again.
-            Prefs.remove(Prefs.TOKEN)
-        }
+        DiscordWebSocketImpl(
+            token = Prefs[Prefs.TOKEN, ""],
+            logger = logger,
+            onAuthenticationFailed = {
+                // Token rejected by Discord (close 4004) — drop it so the UI falls back to the
+                // "not logged in" state and the user knows to log in again.
+                Prefs.remove(Prefs.TOKEN)
+            },
+            onConnectionStateChanged = { connectionState.update(it) }
+        )
 
     @Provides
     fun provideKizzyRpc(

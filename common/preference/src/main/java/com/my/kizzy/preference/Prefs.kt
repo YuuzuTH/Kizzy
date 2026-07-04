@@ -140,6 +140,10 @@ object Prefs {
     const val USER_NITRO = "user-nitro"
     const val LAST_RUN_CONSOLE_RPC = "last_run_console_rpc"
     const val LAST_RUN_CUSTOM_RPC = "last_run_custom_rpc"
+    // Which RPC service the user last had running (stored as its class name). Written when
+    // a service starts, cleared when the user stops it. Read by BootReceiver to bring the
+    // same service back after a reboot — and only then. Empty = user wants nothing running.
+    const val LAST_ACTIVE_SERVICE = "last_active_service"
     const val LANGUAGE = "language"
     const val ENABLED_APPS = "enabled_apps"
     const val ENABLED_MEDIA_APPS = "enabled_media_apps"

@@ -20,13 +20,19 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.PowerManager.WakeLock
+import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.data.utils.toRpcImage
 import com.my.kizzy.domain.model.rpc.RpcConfig
 import com.my.kizzy.feature_rpc_base.Constants
+import com.my.kizzy.feature_rpc_base.forgetActiveService
+import com.my.kizzy.feature_rpc_base.observeConnectionStatus
+import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import com.my.kizzy.preference.Prefs
@@ -50,11 +56,20 @@ class CustomRpcService : Service() {
     @Inject
     lateinit var notificationManager: NotificationManager
 
+    @Inject
+    lateinit var rpcConnectionState: RpcConnectionState
+
+    // Separate from `scope` so a reconnect can update the notification independently; cancelled in onDestroy.
+    private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     @SuppressLint("WakelockTimeout")
     @Suppress("DEPRECATION")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action.equals(Constants.ACTION_STOP_SERVICE)) stopSelf()
-        else {
+        if (intent?.action.equals(Constants.ACTION_STOP_SERVICE)) {
+            // User tapped Stop — don't auto-start this again on the next boot.
+            forgetActiveService(javaClass.name)
+            stopSelf()
+        } else {
             // On a START_STICKY restart the intent (and its "RPC" extra) is null — fall
             // back to the last-run config saved in Prefs so the presence rebuilds instead
             // of coming up empty.
@@ -89,6 +104,11 @@ class CustomRpcService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            // Went foreground successfully — mark this as the service to bring back after a reboot.
+            rememberActiveService(this)
+            // Surface "reconnecting…" in the notification if the gateway drops mid-session.
+            rpcConnectionState.reset()
+            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
 
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK)
@@ -133,6 +153,7 @@ class CustomRpcService : Service() {
     }
 
     override fun onDestroy() {
+        connectionScope.cancel()
         scope.cancel()
         kizzyRPC.closeRPC()
         wakeLock?.let {

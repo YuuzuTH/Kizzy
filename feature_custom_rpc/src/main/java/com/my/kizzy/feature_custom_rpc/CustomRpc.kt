@@ -12,6 +12,8 @@
 
 package com.my.kizzy.feature_custom_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -231,9 +233,9 @@ private fun RpcTextFieldsColumn(
                 isCustomRpcEnabled = !isCustomRpcEnabled
                 when (isCustomRpcEnabled) {
                     true -> {
-                        context.stopService(Intent(context, AppDetectionService::class.java))
-                        context.stopService(Intent(context, MediaRpcService::class.java))
-                        context.stopService(Intent(context, ExperimentalRpc::class.java))
+                        context.stopRpcService(AppDetectionService::class.java)
+                        context.stopRpcService(MediaRpcService::class.java)
+                        context.stopRpcService(ExperimentalRpc::class.java)
                         val intent = Intent(context, CustomRpcService::class.java)
                         val string = uiState.rpcConfig.dataToString()
                         intent.putExtra("RPC", string)
@@ -241,7 +243,7 @@ private fun RpcTextFieldsColumn(
                         context.startService(intent)
                     }
 
-                    false -> context.stopService(Intent(context, CustomRpcService::class.java))
+                    false -> context.stopRpcService(CustomRpcService::class.java)
                 }
             }
         }

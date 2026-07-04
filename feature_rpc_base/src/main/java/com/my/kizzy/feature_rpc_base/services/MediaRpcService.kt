@@ -29,9 +29,13 @@ import android.os.PowerManager
 import android.os.PowerManager.WakeLock
 import com.my.kizzy.data.get_current_data.media.GetCurrentPlayingMedia
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcConnectionState
+import com.my.kizzy.feature_rpc_base.observeConnectionStatus
 import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
+import com.my.kizzy.feature_rpc_base.forgetActiveService
+import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
 import com.my.kizzy.preference.Prefs.MEDIA_RPC_ENABLE_TIMESTAMPS
@@ -57,6 +61,13 @@ class MediaRpcService : Service() {
 
     @Inject
     lateinit var logger: Logger
+
+    @Inject
+    lateinit var rpcConnectionState: RpcConnectionState
+
+    // Separate from `scope`: the presence flow calls scope.cancelChildren() constantly, which
+    // would kill this collector. Cancelled in onDestroy.
+    private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var wakeLock: WakeLock? = null
 
@@ -108,6 +119,11 @@ class MediaRpcService : Service() {
             stopSelf()
             return
         }
+        // Went foreground successfully — mark this as the service to bring back after a reboot.
+        rememberActiveService(this)
+        // Surface "reconnecting…" in the notification if the gateway drops mid-session.
+        rpcConnectionState.reset()
+        observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
 
         mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
         mediaSessionManager.addOnActiveSessionsChangedListener(::activeSessionsListener, ComponentName(this, NotificationListener::class.java))
@@ -242,9 +258,11 @@ class MediaRpcService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
             it.action?.let { ac ->
-                if (ac == Constants.ACTION_STOP_SERVICE)
+                if (ac == Constants.ACTION_STOP_SERVICE) {
+                    // User tapped Stop — don't auto-start this again on the next boot.
+                    forgetActiveService(javaClass.name)
                     stopSelf()
-                else if (ac == Constants.ACTION_RESTART_SERVICE) {
+                } else if (ac == Constants.ACTION_RESTART_SERVICE) {
                     stopSelf()
                     startService(Intent(this, MediaRpcService::class.java))
                 }
@@ -259,6 +277,7 @@ class MediaRpcService : Service() {
         mainHandler.removeCallbacks(reRegisterRunnable)
         mediaSessionManager.removeOnActiveSessionsChangedListener(::activeSessionsListener)
         currentMediaController?.unregisterCallback(mediaControllerCallback)
+        connectionScope.cancel()
         scope.cancel()
         kizzyRPC.closeRPC()
         wakeLock?.let {

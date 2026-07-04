@@ -12,6 +12,8 @@
 
 package com.my.kizzy.feature_rpc_base.services
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.app.Dialog
 import android.content.Context
 import android.content.ContextWrapper
@@ -34,9 +36,9 @@ class KizzyTileService : TileService() {
         val ctx = this
         when (qsTile.state) {
             Tile.STATE_ACTIVE -> {
-                ctx.stopService(Intent(ctx, AppDetectionService::class.java))
-                ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
+                ctx.stopRpcService(AppDetectionService::class.java)
+                ctx.stopRpcService(MediaRpcService::class.java)
+                ctx.stopRpcService(ExperimentalRpc::class.java)
                 Toast.makeText(ctx, getString(R.string.stop_rpc_toast), Toast.LENGTH_SHORT).show()
             }
             Tile.STATE_INACTIVE -> {

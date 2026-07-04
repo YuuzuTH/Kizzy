@@ -12,6 +12,8 @@
 
 package com.my.kizzy.feature_media_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -157,13 +159,13 @@ fun MediaRPC(
                 mediaRpcRunning = !mediaRpcRunning
                 when (mediaRpcRunning) {
                     true -> {
-                        context.stopService(Intent(context, AppDetectionService::class.java))
-                        context.stopService(Intent(context, CustomRpcService::class.java))
-                        context.stopService(Intent(context, ExperimentalRpc::class.java))
+                        context.stopRpcService(AppDetectionService::class.java)
+                        context.stopRpcService(CustomRpcService::class.java)
+                        context.stopRpcService(ExperimentalRpc::class.java)
                         context.startService(Intent(context, MediaRpcService::class.java))
                     }
 
-                    false -> context.stopService(Intent(context, MediaRpcService::class.java))
+                    false -> context.stopRpcService(MediaRpcService::class.java)
                 }
             }
             LazyColumn {

@@ -104,6 +104,8 @@
     <string name="search_placeholder">Search…</string>
     <string name="hide_on_pause">Hide RPC on Pause</string>
     <string name="idling_notification">Idling…</string>
+    <string name="reconnecting_to_discord">Reconnecting to Discord…</string>
+    <string name="connected_to_discord">Connected</string>
     <string name="main_appDetection">App Detection</string>
     <string name="main_appDetection_details">Kizzy allows you to share your current activity on Discord by detecting what app you\'re using on your device.</string>
     <string name="main_mediaRpc">Media RPC</string>

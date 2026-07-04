@@ -107,6 +107,8 @@
     <string name="search_placeholder">ค้นหา…</string>
     <string name="hide_on_pause">ซ่อน RPC เมื่อหยุดเล่นชั่วคราว</string>
     <string name="idling_notification">ว่างอยู่…</string>
+    <string name="reconnecting_to_discord">กำลังเชื่อมต่อ Discord ใหม่…</string>
+    <string name="connected_to_discord">เชื่อมต่อแล้ว</string>
     <string name="main_appDetection">App Detection</string>
     <string name="main_appDetection_details">Kizzy ช่วยแชร์กิจกรรมปัจจุบันของคุณบน Discord โดยตรวจจับแอปที่คุณกำลังใช้งานบนอุปกรณ์</string>
     <string name="main_mediaRpc">Media RPC</string>
