@@ -171,6 +171,8 @@
     <string name="delete">ลบ</string>
     <string name="mandatory">จำเป็น</string>
     <string name="optional">ไม่บังคับ</string>
+    <string name="battery_optimization">ปิดการประหยัดแบตเตอรี่</string>
+    <string name="battery_optimization_desc">อนุญาตให้ Kizzy ทำงานเบื้องหลังต่อได้ เพื่อไม่ให้ระบบฆ่า Rich Presence — แนะนำอย่างยิ่งบนเครื่อง Xiaomi, Samsung และรุ่นที่มีตัวประหยัดแบตดุ</string>
     <string name="general_settings">ทั่วไป</string>
     <string name="activity_playing_title">กำลังเล่นเกม</string>
     <string name="activity_listening_title">กำลังฟัง %1$s</string>

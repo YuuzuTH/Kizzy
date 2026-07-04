@@ -168,6 +168,8 @@
     <string name="delete">Delete</string>
     <string name="mandatory">Mandatory</string>
     <string name="optional">Optional</string>
+    <string name="battery_optimization">Disable Battery Optimization</string>
+    <string name="battery_optimization_desc">Allow Kizzy to keep running in the background so the Rich Presence isn\'t killed by the system. Strongly recommended on Xiaomi, Samsung and other devices with aggressive battery savers.</string>
     <string name="general_settings">General</string>
     <string name="activity_playing_title">Playing a game</string>
     <string name="activity_listening_title">Listening to %1$s</string>
