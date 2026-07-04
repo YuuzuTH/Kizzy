@@ -41,12 +41,20 @@ object AppRpcOverrides {
         }
     }
 
-    /** Custom name when set + non-blank, otherwise [default]. */
-    fun displayName(packageName: String, default: String): String =
-        of(packageName)?.name?.takeIf { it.isNotBlank() } ?: default
-
-    /** Custom external image when a URL is set + non-blank, otherwise [fallback]. */
-    fun image(packageName: String, fallback: RpcImage): RpcImage =
-        of(packageName)?.imageUrl?.takeIf { it.isNotBlank() }
-            ?.let { RpcImage.ExternalImage(it) } ?: fallback
+    /**
+     * Resolve the display name + image for [packageName] in a single read of the
+     * stored overrides. Custom values win when set + non-blank; otherwise the
+     * [defaultName] / [fallbackImage] are used.
+     */
+    fun resolve(
+        packageName: String,
+        defaultName: String,
+        fallbackImage: RpcImage,
+    ): Pair<String, RpcImage> {
+        val override = of(packageName)
+        val name = override?.name?.takeIf { it.isNotBlank() } ?: defaultName
+        val image = override?.imageUrl?.takeIf { it.isNotBlank() }
+            ?.let { RpcImage.ExternalImage(it) } ?: fallbackImage
+        return name to image
+    }
 }

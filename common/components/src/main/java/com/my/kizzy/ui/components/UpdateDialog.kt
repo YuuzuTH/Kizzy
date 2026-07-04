@@ -52,8 +52,10 @@ fun UpdateDialog(
     onUpdate: () -> Unit = {},
     onDismissRequest: () -> Unit = {}
 ) {
-    val busy = downloadState is UpdateDownloadState.Downloading ||
-            downloadState is UpdateDownloadState.Installing
+    // Only an in-flight download blocks closing the dialog. Once the installer
+    // has been launched (Installing) the dialog must stay dismissable/retryable —
+    // otherwise declining the system installer leaves it stuck with dead buttons.
+    val busy = downloadState is UpdateDownloadState.Downloading
     AlertDialog(
         modifier = modifier,
         onDismissRequest = { if (!busy) onDismissRequest() },

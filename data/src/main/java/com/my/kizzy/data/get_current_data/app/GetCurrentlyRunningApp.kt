@@ -26,14 +26,16 @@ class GetCurrentlyRunningApp @Inject constructor(
 ) {
     operator fun invoke(): CommonRpc {
         val packageName = foregroundAppDetector.getForegroundPackage() ?: return CommonRpc()
+        val (name, image) = AppRpcOverrides.resolve(
+            packageName,
+            defaultName = AppUtils.getAppName(packageName),
+            fallbackImage = RpcImage.ApplicationIcon(packageName, context)
+        )
         return CommonRpc(
-            name = AppRpcOverrides.displayName(packageName, AppUtils.getAppName(packageName)),
+            name = name,
             details = null,
             state = null,
-            largeImage = AppRpcOverrides.image(
-                packageName,
-                fallback = RpcImage.ApplicationIcon(packageName, context)
-            ),
+            largeImage = image,
             packageName = packageName
         )
     }

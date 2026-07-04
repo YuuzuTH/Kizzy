@@ -180,8 +180,11 @@ class AppDetectionService : Service() {
         val icon = RpcImage.ApplicationIcon(packageName, this@AppDetectionService)
         // Per-app user overrides: a custom display name and/or a custom image. The
         // notification keeps the real app icon; only the Discord presence is overridden.
-        val displayName = AppRpcOverrides.displayName(packageName, AppUtils.getAppName(packageName))
-        val rpcImage = AppRpcOverrides.image(packageName, fallback = icon)
+        val (displayName, rpcImage) = AppRpcOverrides.resolve(
+            packageName,
+            defaultName = AppUtils.getAppName(packageName),
+            fallbackImage = icon
+        )
         if (kizzyRPC.isRpcRunning()) {
             // A presence is already running for the previous app. Update it in place
             // so switching games immediately reflects the new one — otherwise the RPC
