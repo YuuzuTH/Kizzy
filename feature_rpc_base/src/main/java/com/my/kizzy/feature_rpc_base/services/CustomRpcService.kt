@@ -77,10 +77,17 @@ class CustomRpcService : Service() {
                 .addAction(R.drawable.ic_rpc_placeholder, getString(R.string.exit), pendingIntent)
                 .build()
 
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                startForeground(Constants.NOTIFICATION_ID, notification)
-            } else {
-                startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            try {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    startForeground(Constants.NOTIFICATION_ID, notification)
+                } else {
+                    startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                }
+            } catch (e: Exception) {
+                // A background START_STICKY restart can be rejected on Android 12+
+                // (ForegroundServiceStartNotAllowedException) — fail soft, don't crash.
+                stopSelf()
+                return START_NOT_STICKY
             }
 
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager

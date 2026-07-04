@@ -107,10 +107,17 @@ class AppDetectionService : Service() {
             .addAction(R.drawable.ic_apps, getString(R.string.exit), pendingIntent)
 
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            startForeground(Constants.NOTIFICATION_ID, createDefaultNotification())
-        } else {
-            startForeground(Constants.NOTIFICATION_ID, createDefaultNotification(), FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                startForeground(Constants.NOTIFICATION_ID, createDefaultNotification())
+            } else {
+                startForeground(Constants.NOTIFICATION_ID, createDefaultNotification(), FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            }
+        } catch (e: Exception) {
+            // A background START_STICKY restart can be rejected on Android 12+
+            // (ForegroundServiceStartNotAllowedException) — fail soft, don't crash.
+            stopSelf()
+            return
         }
 
         val rpcButtons = getRpcButtons()

@@ -229,12 +229,22 @@ fun StartUp(
                         status = isBatteryOptIgnored
                     ) {
                         if (!isBatteryOptIgnored) {
-                            @SuppressLint("BatteryLife")
-                            val intent = Intent(
-                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:${context.packageName}")
-                            )
-                            batteryOptLauncher.launch(intent)
+                            try {
+                                @SuppressLint("BatteryLife")
+                                val intent = Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                batteryOptLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                // Some Android Go / stripped OEM builds lack that activity —
+                                // fall back to the general battery-optimization list.
+                                runCatching {
+                                    batteryOptLauncher.launch(
+                                        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
