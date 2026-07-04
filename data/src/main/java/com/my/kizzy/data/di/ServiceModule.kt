@@ -33,7 +33,11 @@ object ServiceModule {
     fun providesDiscordWebsocket(
         logger: Logger
     ): DiscordWebSocket =
-        DiscordWebSocketImpl(Prefs[Prefs.TOKEN, ""], logger)
+        DiscordWebSocketImpl(Prefs[Prefs.TOKEN, ""], logger) {
+            // Token rejected by Discord (close 4004) — drop it so the UI falls back to the
+            // "not logged in" state and the user knows to log in again.
+            Prefs.remove(Prefs.TOKEN)
+        }
 
     @Provides
     fun provideKizzyRpc(

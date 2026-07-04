@@ -53,6 +53,9 @@ class GamesViewModel @Inject constructor(
             when (result) {
                 is Resource.Success -> {
                     _state.value = GamesState.Success(games = result.data ?: emptyList())
+                    // Reset first so a "Try again" retry doesn't append a second copy of
+                    // the whole list on top of the backing cache used for search.
+                    games.clear()
                     games.addAll(result.data ?: emptyList())
                 }
 

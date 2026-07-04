@@ -25,7 +25,11 @@ import kotlin.time.Duration.Companion.milliseconds
 
 open class DiscordWebSocketImpl(
     private val token: String,
-    private val logger: Logger = NoOpLogger
+    private val logger: Logger = NoOpLogger,
+    // Invoked when Discord rejects the token (gateway close 4004). Lets the host
+    // clear the stored token so the app can prompt a re-login instead of appearing
+    // to work while nothing ever shows up on Discord.
+    private val onAuthenticationFailed: () -> Unit = {}
 ) : DiscordWebSocket {
     private val gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json"
     private var websocket: DefaultClientWebSocketSession? = null
@@ -98,6 +102,10 @@ open class DiscordWebSocketImpl(
             // 4004 = auth failed, 4010..4014 = fatal (invalid intents etc.) — retrying is pointless
             code == 4004 || (code != null && code in 4010..4014) -> {
                 logger.e("Gateway","Fatal close code $code — not reconnecting")
+                // 4004 = the account token is invalid/expired. Signal the host so it can
+                // clear the token and surface a re-login prompt (otherwise the service keeps
+                // "running" while Discord silently ignores every presence update).
+                if (code == 4004) onAuthenticationFailed()
                 close()
             }
             else -> scheduleReconnect(epoch)

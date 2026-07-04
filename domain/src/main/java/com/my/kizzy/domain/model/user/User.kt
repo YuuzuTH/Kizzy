@@ -51,7 +51,13 @@ data class User(
 val globalName: String? = null
 ) {
     fun getAvatarImage(): String {
-        return if (avatar?.startsWith("a_") == true)
+        // No custom avatar set → fall back to a Discord default avatar instead of
+        // building a broken ".../avatars/<id>/null.png" URL.
+        if (avatar.isNullOrEmpty()) {
+            val index = ((id?.toLongOrNull() ?: 0L) shr 22) % 6
+            return "$DISCORD_CDN/embed/avatars/$index.png"
+        }
+        return if (avatar.startsWith("a_"))
             "${DISCORD_CDN}/avatars/${id}/${avatar}.gif?size=512"
         else
             "${DISCORD_CDN}/avatars/${id}/${avatar}.png?size=512"

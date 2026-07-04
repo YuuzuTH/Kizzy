@@ -65,7 +65,7 @@ val languages: Map<Int, String> =
         Pair(GERMAN, "de"),
         Pair(THAI, "th"),
         Pair(JAPANESE, "ja"),
-        Pair(KOREAN, "kr"),
+        Pair(KOREAN, "ko"),
         Pair(ARABIC, "ar"),
         Pair(SPANISH, "es"),
         Pair(HEBREW, "he")

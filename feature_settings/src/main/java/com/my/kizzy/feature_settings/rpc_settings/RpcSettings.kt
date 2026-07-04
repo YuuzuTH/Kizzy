@@ -380,8 +380,11 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        if (customActivityType.toInt() in 0..5) {
-                            Prefs[Prefs.CUSTOM_ACTIVITY_TYPE] = customActivityType.toInt()
+                        // Guard against an empty/non-numeric field (the input is a free
+                        // text field) — toInt() would throw NumberFormatException and crash.
+                        val parsedType = customActivityType.toIntOrNull()
+                        if (parsedType != null && parsedType in 0..5) {
+                            Prefs[Prefs.CUSTOM_ACTIVITY_TYPE] = parsedType
                             showActivityTypeDialog = false
                         }
                     }) {
