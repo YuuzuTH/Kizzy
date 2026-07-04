@@ -29,6 +29,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import com.my.kizzy.preference.Prefs
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -54,7 +55,11 @@ class CustomRpcService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action.equals(Constants.ACTION_STOP_SERVICE)) stopSelf()
         else {
+            // On a START_STICKY restart the intent (and its "RPC" extra) is null — fall
+            // back to the last-run config saved in Prefs so the presence rebuilds instead
+            // of coming up empty.
             val string = intent?.getStringExtra("RPC")
+                ?: Prefs[Prefs.LAST_RUN_CUSTOM_RPC, ""].ifEmpty { null }
             string?.let {
                 rpcData = Json.decodeFromString(it)
             }
@@ -115,7 +120,9 @@ class CustomRpcService : Service() {
                 }
             }
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system restarts the service after a kill; the config is
+        // restored from Prefs above when the redelivered intent is null.
+        return START_STICKY
     }
 
     override fun onDestroy() {

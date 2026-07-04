@@ -243,7 +243,9 @@ class MediaRpcService : Service() {
                 }
             }
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system restarts the service after a low-memory kill;
+        // onCreate re-registers the media session listener, so it recovers on its own.
+        return START_STICKY
     }
 
     override fun onDestroy() {

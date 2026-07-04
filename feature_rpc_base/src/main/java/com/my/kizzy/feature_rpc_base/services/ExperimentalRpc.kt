@@ -166,7 +166,9 @@ class ExperimentalRpc : Service() {
             // whole "media active? → media presence, else → app detection" decision.
             activeSessionsListener(null, false)
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system resurrects the service after a kill; the else branch
+        // above reloads every setting from Prefs, so a null-intent restart fully recovers.
+        return START_STICKY
     }
 
     private fun startAppDetectionCoroutine() {

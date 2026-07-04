@@ -77,7 +77,9 @@ class AppDetectionService : Service() {
         } else {
             handleAppDetection()
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system resurrects the service (with a null intent) after
+        // killing it for memory — detection reads live state, so it rebuilds on its own.
+        return START_STICKY
     }
 
     override fun onDestroy() {
