@@ -155,7 +155,7 @@
     <string name="app_override_section_text">ข้อความ</string>
     <string name="app_override_section_images">รูปภาพ</string>
     <string name="app_override_section_buttons">ปุ่ม</string>
-    <string name="app_override_buttons_hint">ปุ่มต้องมีทั้งป้ายและลิงก์ถึงจะแสดง</string>
+    <string name="app_override_buttons_hint">ปุ่มต้องมีทั้งป้ายและลิงก์ถึงจะแสดง · หมายเหตุ: Discord ซ่อนปุ่มของคุณจากตัวคุณเอง — คุณจะไม่เห็นปุ่มบนโปรไฟล์ตัวเอง แต่คนอื่นเห็นปกติ</string>
     <string name="activity_type_playing">กำลังเล่น</string>
     <string name="activity_type_streaming">กำลังสตรีม</string>
     <string name="activity_type_listening">กำลังฟัง</string>

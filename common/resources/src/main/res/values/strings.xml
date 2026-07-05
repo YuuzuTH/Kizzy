@@ -152,7 +152,7 @@
     <string name="app_override_section_text">Text</string>
     <string name="app_override_section_images">Images</string>
     <string name="app_override_section_buttons">Buttons</string>
-    <string name="app_override_buttons_hint">A button needs both a label and a URL to show.</string>
+    <string name="app_override_buttons_hint">A button needs both a label and a URL to show. Note: Discord hides your own buttons from you — you won\'t see them on your profile, but other people will.</string>
     <string name="activity_type_playing">Playing</string>
     <string name="activity_type_streaming">Streaming</string>
     <string name="activity_type_listening">Listening</string>
