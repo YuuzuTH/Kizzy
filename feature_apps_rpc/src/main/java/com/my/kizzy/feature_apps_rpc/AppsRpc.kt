@@ -22,6 +22,8 @@ import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -37,7 +39,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -75,6 +79,7 @@ fun AppsRPC(
     hasUsageAccess: Boolean,
     onSetOverride: (pkg: String, override: AppRpcOverride) -> Unit = { _, _ -> },
     onClearOverride: (pkg: String) -> Unit = { },
+    onClearAllOverrides: () -> Unit = { },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState(),
@@ -84,6 +89,7 @@ fun AppsRPC(
     var searchText by remember { mutableStateOf("") }
     var isSearchBarVisible by remember { mutableStateOf(false) }
     var editingPkg by remember { mutableStateOf<String?>(null) }
+    var showOnlyCustomized by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier
@@ -173,26 +179,42 @@ fun AppsRPC(
                     }
                     if (state.overrides.isNotEmpty()) {
                         item {
-                            Text(
-                                text = stringResource(
-                                    id = R.string.apps_configured_summary,
-                                    state.overrides.size
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                FilterChip(
+                                    selected = showOnlyCustomized,
+                                    onClick = { showOnlyCustomized = !showOnlyCustomized },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                id = R.string.apps_configured_summary,
+                                                state.overrides.size
+                                            )
+                                        )
+                                    },
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                TextButton(onClick = onClearAllOverrides) {
+                                    Text(stringResource(id = R.string.apps_clear_all))
+                                }
+                            }
                         }
                     }
                     items(
                         state.apps.size,
                         key = { idx -> state.apps[idx].pkg }
                     ) { i ->
-                        if (searchText.isEmpty() || state.apps[i].name.contains(
-                                searchText,
-                                ignoreCase = true
-                            ) || state.apps[i].pkg.contains(searchText, ignoreCase = true)
-                        ) {
+                        val matchesSearch = searchText.isEmpty() ||
+                            state.apps[i].name.contains(searchText, ignoreCase = true) ||
+                            state.apps[i].pkg.contains(searchText, ignoreCase = true)
+                        val matchesFilter =
+                            !showOnlyCustomized || state.overrides.containsKey(state.apps[i].pkg)
+                        if (matchesSearch && matchesFilter) {
                             AppsItem(
                                 name = state.apps[i].name,
                                 pkg = state.apps[i].pkg,

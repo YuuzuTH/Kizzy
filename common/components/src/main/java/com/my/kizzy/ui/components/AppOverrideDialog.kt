@@ -134,17 +134,21 @@ fun AppOverrideDialog(
                     color = MaterialTheme.colorScheme.outline,
                 )
 
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = stringResource(R.string.app_override_show_timestamps),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Switch(checked = showTimestamps, onCheckedChange = { showTimestamps = it })
+                // Discord doesn't render an elapsed timer for the Streaming type (it shows
+                // "LIVE" instead), so the toggle is meaningless there — hide it to avoid confusion.
+                if (activityType != 1) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.app_override_show_timestamps),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Switch(checked = showTimestamps, onCheckedChange = { showTimestamps = it })
+                    }
                 }
 
                 Spacer(Modifier.height(8.dp))

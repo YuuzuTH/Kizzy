@@ -162,6 +162,7 @@
     <string name="activity_type_watching">กำลังดู</string>
     <string name="activity_type_competing">กำลังแข่ง</string>
     <string name="apps_configured_summary">ปรับแต่งแล้ว %1$d</string>
+    <string name="apps_clear_all">ล้างทั้งหมด</string>
     <string name="app_detection_sensitivity">ความไวการตรวจจับ</string>
     <string name="detection_fast">เร็ว (ทุก 2 วิ)</string>
     <string name="detection_normal">ปกติ (ทุก 5 วิ)</string>

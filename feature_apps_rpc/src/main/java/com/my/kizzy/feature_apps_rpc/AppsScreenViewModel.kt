@@ -73,6 +73,14 @@ class AppsScreenViewModel @Inject constructor(
         }
     }
 
+    /** Remove every per-app customization at once. */
+    fun clearAllOverrides() {
+        viewModelScope.launch(Dispatchers.IO) {
+            AppRpcOverrides.clearAll()
+            _state.update { it.copy(overrides = AppRpcOverrides.all()) }
+        }
+    }
+
     fun updateAppEnabled(pkg: String) {
         viewModelScope.launch(Dispatchers.IO) {
             Prefs.saveToPrefs(pkg)

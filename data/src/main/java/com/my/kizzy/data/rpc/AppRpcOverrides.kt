@@ -41,6 +41,11 @@ object AppRpcOverrides {
         }
     }
 
+    /** Remove every per-app override. */
+    fun clearAll() {
+        Prefs.remove(Prefs.APP_RPC_OVERRIDES)
+    }
+
     /**
      * Resolve the display name + image for [packageName] in a single read of the
      * stored overrides. Custom values win when set + non-blank; otherwise the
