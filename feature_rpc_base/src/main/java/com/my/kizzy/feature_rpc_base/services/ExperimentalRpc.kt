@@ -165,7 +165,7 @@ class ExperimentalRpc : Service() {
             rememberActiveService(this)
             // Surface "reconnecting…" in the notification if the gateway drops mid-session.
             rpcConnectionState.reset()
-            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
+            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager)
 
 
             mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager

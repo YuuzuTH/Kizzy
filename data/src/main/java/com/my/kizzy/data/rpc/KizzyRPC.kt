@@ -54,6 +54,34 @@ class KizzyRPC(
         discordWebSocket.close()
     }
 
+    /**
+     * Reset every builder field back to its default so a subsequent [build] starts clean.
+     * The same KizzyRPC instance is reused across [build] calls within a service (App
+     * Detection rebuilds on each app switch after a disable/close), and the button setters
+     * *append* — without this, buttons accumulate and per-app fields (details, images,
+     * timestamps, stream url…) leak from the previously built app into the next one.
+     * [applicationIdNumber] is intentionally kept: it comes from Prefs, not the per-app build.
+     */
+    fun resetBuilder(): KizzyRPC {
+        activityName = null
+        details = null
+        state = null
+        party = null
+        largeImage = null
+        smallImage = null
+        largeText = null
+        smallText = null
+        status = null
+        startTimestamps = null
+        stopTimestamps = null
+        type = 0
+        platform = null
+        buttons.clear()
+        buttonUrl.clear()
+        url = null
+        return this
+    }
+
     fun isRpcRunning(): Boolean {
         return discordWebSocket.isWebSocketConnected()
     }

@@ -108,7 +108,7 @@ class CustomRpcService : Service() {
             rememberActiveService(this)
             // Surface "reconnecting…" in the notification if the gateway drops mid-session.
             rpcConnectionState.reset()
-            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
+            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager)
 
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK)

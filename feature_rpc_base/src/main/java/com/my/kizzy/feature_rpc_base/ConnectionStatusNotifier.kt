@@ -26,17 +26,27 @@ import kotlinx.coroutines.launch
  * Reflect the gateway [connectionState] in the running service's foreground notification so a
  * silent reconnect reads as "Reconnecting to Discord…" instead of the presence appearing frozen.
  *
- * Call once from a running RPC service. Pass a [scope] that is NOT the one the service churns
- * with `cancelChildren()` during presence updates (Media/Experimental do), and cancel it in
- * onDestroy. The notice only overwrites the notification text on a real reconnect; a normal
- * presence update restores the real content on the next change.
+ * It builds its **own** [Notification.Builder] rather than mutating the service's shared one:
+ * the presence-update coroutines mutate that shared builder on a different scope, and
+ * Notification.Builder is not thread-safe, so sharing it would race. Both post to the same
+ * notification id — [NotificationManager.notify] is thread-safe, so the last write simply wins
+ * and a normal presence update restores the full notification on the next change.
+ *
+ * Call once from a running RPC service with a [scope] that is NOT the one it churns with
+ * `cancelChildren()` during presence updates (Media/Experimental do); cancel it in onDestroy.
  */
 fun Service.observeConnectionStatus(
     scope: CoroutineScope,
     connectionState: RpcConnectionState,
     notificationManager: NotificationManager,
-    notificationBuilder: Notification.Builder,
 ) {
+    fun statusNotification(text: String): Notification =
+        Notification.Builder(this, Constants.CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_rpc_placeholder)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(text)
+            .build()
+
     var showingReconnect = false
     scope.launch {
         connectionState.state.collect { state ->
@@ -45,22 +55,18 @@ fun Service.observeConnectionStatus(
                     showingReconnect = true
                     notificationManager.notify(
                         Constants.NOTIFICATION_ID,
-                        notificationBuilder
-                            .setContentTitle(getString(R.string.app_name))
-                            .setContentText(getString(R.string.reconnecting_to_discord))
-                            .build()
+                        statusNotification(getString(R.string.reconnecting_to_discord))
                     )
                 }
 
                 ConnectionState.CONNECTED -> {
-                    // Only clear the notice we posted; leave a normal notification untouched.
+                    // Only overwrite when we were showing the reconnect notice; a normal
+                    // presence notification is left untouched.
                     if (showingReconnect) {
                         showingReconnect = false
                         notificationManager.notify(
                             Constants.NOTIFICATION_ID,
-                            notificationBuilder
-                                .setContentText(getString(R.string.connected_to_discord))
-                                .build()
+                            statusNotification(getString(R.string.connected_to_discord))
                         )
                     }
                 }

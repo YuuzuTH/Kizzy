@@ -25,6 +25,7 @@ import android.os.IBinder
 import android.util.Log
 import com.blankj.utilcode.util.AppUtils
 import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
+import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
@@ -81,6 +82,9 @@ class AppDetectionService : Service() {
     private lateinit var restartPendingIntent: PendingIntent
 
     private var runningPackage = ""
+    // The override last pushed for [runningPackage]; lets the loop notice an in-place edit
+    // (e.g. the user toggling the timer) and re-send without waiting for an app switch.
+    private var lastAppliedOverride: AppRpcOverride? = null
     override fun onBind(intent: Intent): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
@@ -140,7 +144,7 @@ class AppDetectionService : Service() {
         rememberActiveService(this)
         // Surface "reconnecting…" in the notification if the gateway drops mid-session.
         rpcConnectionState.reset()
-        observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager, notificationBuilder)
+        observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager)
 
         val rpcButtons = getRpcButtons()
         // User-selected detection sensitivity: Fast 2s / Normal 5s / Battery 10s. Read once
@@ -158,6 +162,7 @@ class AppDetectionService : Service() {
                     // instead of being skipped as "unchanged" and staying frozen.
                     if (runningPackage.isNotEmpty() && !kizzyRPC.isRpcRunning()) {
                         runningPackage = ""
+                        lastAppliedOverride = null
                     }
 
                     val packageName = foregroundAppDetector.getForegroundPackage()
@@ -191,12 +196,20 @@ class AppDetectionService : Service() {
         enabledPackages: List<String>,
         rpcButtons: RpcButtons,
     ) {
-        if (packageName in enabledPackages && packageName != runningPackage) {
-            handleEnabledPackage(packageName, rpcButtons)
-            runningPackage = packageName
+        if (packageName in enabledPackages) {
+            // Re-apply not only when the foreground app changes, but also when the user
+            // edits the current app's override while it's still in the foreground — otherwise
+            // a name/timer/button/image change wouldn't show until the next app switch.
+            val override = AppRpcOverrides.of(packageName)
+            if (packageName != runningPackage || override != lastAppliedOverride) {
+                handleEnabledPackage(packageName, rpcButtons)
+                runningPackage = packageName
+                lastAppliedOverride = override
+            }
         } else if (packageName != runningPackage) {
             handleDisabledPackage()
             runningPackage = ""
+            lastAppliedOverride = null
         }
     }
 
@@ -264,6 +277,9 @@ class AppDetectionService : Service() {
             )
         } else {
             kizzyRPC.apply {
+                // Same instance is reused across app switches; clear leftover state (appended
+                // buttons, previous app's timestamps/images/details) before building fresh.
+                resetBuilder()
                 setName(rpc.name)
                 setType(rpc.activityType)
                 setDetails(rpc.details)
