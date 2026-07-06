@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Kizzy by Yuzu夕</string>
+    <string name="app_name">D_RPC Yuzu夕</string>
     <string name="qs_tile_label" translatable="false">Kizzy Quickie</string>
 
     <!-- Activities -->

@@ -49,6 +49,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +70,8 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.my.kizzy.domain.model.toVersion
+import com.my.kizzy.domain.model.release.changelogBody
+import com.my.kizzy.domain.model.release.isCritical
 import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.domain.model.user.User
 import com.my.kizzy.feature_home.feature.Features
@@ -83,6 +86,10 @@ import com.my.kizzy.ui.components.CreditDialog
 import com.my.kizzy.ui.components.UpdateDialog
 import kotlinx.coroutines.launch
 
+// Silent auto-check on launch is throttled to once per 24h. The manual "check for
+// updates" toolbar tap ignores this and always checks immediately (see checkForUpdates()).
+private const val AUTO_UPDATE_CHECK_THROTTLE_MS = 24L * 60L * 60L * 1000L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Home(
@@ -90,7 +97,6 @@ fun Home(
     checkForUpdates: () -> Unit,
     downloadState: UpdateDownloadState = UpdateDownloadState.Idle,
     onDownloadUpdate: (downloadUrl: String, versionName: String) -> Unit = { _, _ -> },
-    showBadge: Boolean,
     features: List<HomeFeature>,
     user: User?,
     navigateToProfile: () -> Unit,
@@ -110,6 +116,20 @@ fun Home(
     var showCreditDialog by remember {
         mutableStateOf(!Prefs[Prefs.CREDIT_DIALOG_SHOWN, false])
     }
+    // Whether the check currently in flight (or the one that just completed) was the
+    // silent auto-check, as opposed to the user's manual toolbar tap. Only the silent
+    // path is subject to the "already dismissed this version" auto-popup gate below —
+    // a manual tap always shows the dialog/toast immediately, same as before this
+    // feature existed.
+    var isSilentUpdateCheck by remember {
+        mutableStateOf(false)
+    }
+    // Toolbar badge: mirrors Prefs.PENDING_UPDATE_TAG so it survives process death/app
+    // restart. Re-read on resume (below) and whenever a check completes (further down),
+    // not just once at first composition.
+    var pendingUpdateTag by remember {
+        mutableStateOf(Prefs[Prefs.PENDING_UPDATE_TAG, ""])
+    }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val scrollBehavior =
@@ -121,6 +141,60 @@ fun Home(
     OnLifecycleEvent { _, event ->
         if (event == Lifecycle.Event.ON_RESUME) {
             homeItems = features
+            pendingUpdateTag = Prefs[Prefs.PENDING_UPDATE_TAG, ""]
+        }
+    }
+
+    // Silent auto-check on launch, throttled to once per 24h. Runs once per Home
+    // composition (LaunchedEffect key = Unit does not refire on recomposition) — it
+    // will run again if the user navigates away from and back to Home, but the Prefs
+    // timestamp check below still enforces the real 24h throttle across that.
+    LaunchedEffect(Unit) {
+        val now = System.currentTimeMillis()
+        val lastCheck = Prefs[Prefs.LAST_UPDATE_CHECK_TIME, 0L]
+        if (now - lastCheck > AUTO_UPDATE_CHECK_THROTTLE_MS) {
+            Prefs[Prefs.LAST_UPDATE_CHECK_TIME] = now
+            isSilentUpdateCheck = true
+            checkForUpdates()
+        }
+    }
+
+    // Reacts once per distinct completed check (silent or manual) — not on every
+    // recomposition — to update the persisted badge/dismiss state and decide whether
+    // the silent path should auto-pop the dialog. The manual path's dialog/toast is
+    // otherwise driven straight off `showUpdateDialog` + `state` in the render code
+    // below, same shape as before this feature existed.
+    LaunchedEffect(state) {
+        val completed = state as? HomeScreenState.LoadingCompleted ?: return@LaunchedEffect
+        val needsUpdate = completed.release.toVersion()
+            .whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
+        val tagName = completed.release.tagName ?: ""
+
+        Prefs[Prefs.PENDING_UPDATE_TAG] = if (needsUpdate) tagName else ""
+        pendingUpdateTag = Prefs[Prefs.PENDING_UPDATE_TAG, ""]
+
+        if (isSilentUpdateCheck) {
+            isSilentUpdateCheck = false
+            if (needsUpdate) {
+                val alreadyDismissed = tagName.isNotEmpty() &&
+                    tagName == Prefs[Prefs.LAST_DISMISSED_UPDATE_VERSION, ""]
+                if (completed.release.isCritical() || !alreadyDismissed) {
+                    showUpdateDialog = true
+                }
+            }
+            // Silent path never toasts "no update available" and never forces the
+            // dialog closed — it's not the silent check's place to interrupt the user.
+        } else if (!needsUpdate) {
+            // Manual path, no update available: keep the exact pre-existing toast
+            // behavior. (When an update *is* available, showUpdateDialog is already
+            // true from the toolbar tap handler, and the render code below picks it
+            // up — nothing extra needed here.)
+            Toast.makeText(
+                ctx,
+                ctx.getString(R.string.update_no_updates_available),
+                Toast.LENGTH_SHORT
+            ).show()
+            showUpdateDialog = false
         }
     }
 
@@ -177,7 +251,22 @@ fun Home(
                         }
                     },
                     actions = {
-                        if (showBadge) {
+                        val onUpdateIconClick: () -> Unit = {
+                            // Manual tap: always immediate, always shows the
+                            // dialog/toast — never gated by throttle or dismiss
+                            // history. Reset isSilentUpdateCheck in case a silent
+                            // auto-check is still in flight, so its result is
+                            // handled by the manual (not silent) branch above.
+                            isSilentUpdateCheck = false
+                            Toast.makeText(
+                                ctx,
+                                ctx.getString(R.string.update_check_for_update),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            checkForUpdates()
+                            showUpdateDialog = true
+                        }
+                        if (pendingUpdateTag.isNotEmpty()) {
                             BadgedBox(
                                 badge = {
                                     Badge(
@@ -193,30 +282,14 @@ fun Home(
                                 Icon(
                                     imageVector = Icons.Outlined.Update,
                                     contentDescription = "Update",
-                                    modifier = Modifier.clickable {
-                                        Toast.makeText(
-                                            ctx,
-                                            ctx.getString(R.string.update_check_for_update),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        checkForUpdates()
-                                        showUpdateDialog = true
-                                    }
+                                    modifier = Modifier.clickable(onClick = onUpdateIconClick)
                                 )
                             }
                         } else {
                             Icon(
                                 imageVector = Icons.Outlined.Update,
                                 contentDescription = "Update",
-                                modifier = Modifier.clickable {
-                                    Toast.makeText(
-                                        ctx,
-                                        ctx.getString(R.string.update_check_for_update),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    checkForUpdates()
-                                    showUpdateDialog = true
-                                }
+                                modifier = Modifier.clickable(onClick = onUpdateIconClick)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -285,40 +358,49 @@ fun Home(
             }
             when (state) {
                 is HomeScreenState.LoadingCompleted -> {
-                    if (showUpdateDialog) {
-                        if (state.release.toVersion()
-                                .whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
-                        ) {
-                            with(state.release) {
-                                val apkAsset = assets?.firstOrNull {
-                                    it?.name?.endsWith(".apk") == true
-                                } ?: assets?.getOrNull(0)
-                                UpdateDialog(
-                                    newVersionPublishDate = publishedAt ?: "",
-                                    newVersionSize = apkAsset?.size ?: 0,
-                                    newVersionLog = body ?: "",
-                                    downloadState = downloadState,
-                                    onUpdate = {
-                                        val url = apkAsset?.browserDownloadUrl
-                                        if (url != null) {
-                                            onDownloadUpdate(
-                                                url,
-                                                (tagName ?: "").removePrefix("v")
-                                            )
-                                        }
-                                    },
-                                    onDismissRequest = {
-                                        showUpdateDialog = false
-                                    },
-                                )
-                            }
-                        } else {
-                            Toast.makeText(
-                                ctx,
-                                ctx.getString(R.string.update_no_updates_available),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            showUpdateDialog = false
+                    // The "no update available" toast + showUpdateDialog reset for the
+                    // manual-tap-no-update case, and the badge/dismiss bookkeeping, now
+                    // live in the LaunchedEffect(state) above (runs once per distinct
+                    // completed check, not on every recomposition). This block only
+                    // renders the dialog itself.
+                    if (showUpdateDialog &&
+                        state.release.toVersion()
+                            .whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
+                    ) {
+                        with(state.release) {
+                            val apkAsset = assets?.firstOrNull {
+                                it?.name?.endsWith(".apk") == true
+                            } ?: assets?.getOrNull(0)
+                            val critical = isCritical()
+                            UpdateDialog(
+                                newVersionPublishDate = publishedAt ?: "",
+                                newVersionSize = apkAsset?.size ?: 0,
+                                newVersionLog = changelogBody(),
+                                downloadState = downloadState,
+                                isCritical = critical,
+                                onUpdate = {
+                                    val url = apkAsset?.browserDownloadUrl
+                                    if (url != null) {
+                                        onDownloadUpdate(
+                                            url,
+                                            (tagName ?: "").removePrefix("v")
+                                        )
+                                    }
+                                },
+                                onDismissRequest = {
+                                    // Critical releases have nothing to dismiss: no
+                                    // dismiss button and no back/outside dismiss (see
+                                    // UpdateDialog), so in practice this callback is
+                                    // unreachable while critical == true. Guarded here
+                                    // too so a critical release can never be recorded
+                                    // as "seen and dismissed".
+                                    if (!critical) {
+                                        Prefs[Prefs.LAST_DISMISSED_UPDATE_VERSION] =
+                                            tagName ?: ""
+                                    }
+                                    showUpdateDialog = false
+                                },
+                            )
                         }
                     }
                 }
@@ -353,7 +435,6 @@ fun HomeScreenPreview() {
     Home(
         state = HomeScreenState.Loading,
         checkForUpdates = {},
-        showBadge = true,
         features = fakeFeatures,
         user = fakeUser,
         navigateToProfile = { },

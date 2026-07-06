@@ -198,6 +198,21 @@ object Prefs {
 
     const val LATEST_RELEASE = "latest_release"
 
+    // Auto-update (silent check on app launch, see Home.kt):
+    // Tag of the release the user has already seen-and-dismissed the *automatic*
+    // popup for. A manual tap of the update icon always shows the dialog/toast
+    // regardless of this value — it only gates the silent auto-popup, and is never
+    // written for a critical/mandatory release (there is nothing to dismiss).
+    const val LAST_DISMISSED_UPDATE_VERSION = "last_dismissed_update_version"
+    // Epoch ms of the last silent auto-check; throttles it to once per 24h. The
+    // manual "check for updates" tap ignores this and always checks immediately.
+    const val LAST_UPDATE_CHECK_TIME = "last_update_check_time"
+    // Tag name of a known-available newer release ("" = none known). Drives the
+    // toolbar badge so it survives app restarts without waiting for another check.
+    // Set whenever a check (silent or manual) confirms a newer release; cleared
+    // once a check confirms the app is up to date.
+    const val PENDING_UPDATE_TAG = "pending_update_tag"
+
     // Last Deleted Time of Saved Images
     const val LAST_DELETED = "last_deleted"
 

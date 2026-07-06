@@ -93,15 +93,15 @@ internal fun ComponentActivity.Kizzy(
                     })
             }
             animatedComposable(Routes.HOME) {
+                // Cached last-known release (may be stale) — lets a manual "check for
+                // updates" tap skip a network round-trip when we already know a newer
+                // version exists. The toolbar badge itself is driven independently, from
+                // Prefs.PENDING_UPDATE_TAG, inside Home() (see Home.kt).
                 val release = Prefs.getSavedLatestRelease()
                 val user = Prefs.getUser()
                 val viewModel by viewModels<HomeScreenViewModel>()
                 val state = viewModel.aboutScreenState.collectAsState().value
                 val downloadState = viewModel.downloadState.collectAsState().value
-                val showBadge = release
-                    ?.toVersion()
-                    ?.whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
-                    ?: false
                 Home(
                     state = state,
                     checkForUpdates = {
@@ -115,7 +115,6 @@ internal fun ComponentActivity.Kizzy(
                     onDownloadUpdate = { url, versionName ->
                         viewModel.downloadUpdate(url, versionName)
                     },
-                    showBadge = showBadge,
                     features = homeFeaturesProvider(
                         navigateTo = { navController.navigate(it) },
                         hasUsageAccess = usageAccessStatus,

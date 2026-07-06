@@ -21,6 +21,7 @@ import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.domain.repository.AppUpdater
 import com.my.kizzy.domain.use_case.check_for_update.CheckForUpdateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +43,10 @@ class HomeScreenViewModel @Inject constructor(
         MutableStateFlow(UpdateDownloadState.Idle)
     val downloadState: StateFlow<UpdateDownloadState> = _downloadState.asStateFlow()
 
+    // Guards against the silent auto-check on launch and a manual toolbar tap racing
+    // each other: only the most recently started check is allowed to land its result.
+    private var updateCheckJob: Job? = null
+
     /** Download the release APK and hand it to the installer, all in-app. */
     fun downloadUpdate(downloadUrl: String, versionName: String) {
         if (_downloadState.value is UpdateDownloadState.Downloading) return
@@ -51,7 +56,8 @@ class HomeScreenViewModel @Inject constructor(
     }
 
     fun getLatestUpdate() {
-        checkForUpdateUseCase().onEach { result ->
+        updateCheckJob?.cancel()
+        updateCheckJob = checkForUpdateUseCase().onEach { result ->
             when(result){
                 is Resource.Success -> {
                     _aboutScreenState.value =
@@ -68,6 +74,9 @@ class HomeScreenViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
     fun setReleaseFromPrefs(release: Release){
+        // Also cancel any in-flight network check so it can't land its result after
+        // this and clobber the state we're about to set synchronously from cache.
+        updateCheckJob?.cancel()
         _aboutScreenState.value = HomeScreenState.LoadingCompleted(release)
     }
 }

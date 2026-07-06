@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.resources.R
 
@@ -49,6 +50,7 @@ fun UpdateDialog(
     newVersionSize: Int,
     newVersionLog: String,
     downloadState: UpdateDownloadState = UpdateDownloadState.Idle,
+    isCritical: Boolean = false,
     onUpdate: () -> Unit = {},
     onDismissRequest: () -> Unit = {}
 ) {
@@ -56,9 +58,17 @@ fun UpdateDialog(
     // has been launched (Installing) the dialog must stay dismissable/retryable —
     // otherwise declining the system installer leaves it stuck with dead buttons.
     val busy = downloadState is UpdateDownloadState.Downloading
+    // Critical/forced releases have no escape hatch: no dismiss button, and back-press
+    // / outside-tap are disabled via DialogProperties below. The `!isCritical` guard
+    // here is a defense-in-depth belt-and-suspenders — those two properties should
+    // already make onDismissRequest unreachable for a critical release.
     AlertDialog(
         modifier = modifier,
-        onDismissRequest = { if (!busy) onDismissRequest() },
+        onDismissRequest = { if (!busy && !isCritical) onDismissRequest() },
+        properties = DialogProperties(
+            dismissOnBackPress = !isCritical,
+            dismissOnClickOutside = !isCritical,
+        ),
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Update,
@@ -106,12 +116,14 @@ fun UpdateDialog(
                 )
             }
         },
-        dismissButton = {
-            TextButton(
-                enabled = !busy,
-                onClick = onDismissRequest
-            ) {
-                Text(text = stringResource(R.string.cancel))
+        dismissButton = if (isCritical) null else {
+            {
+                TextButton(
+                    enabled = !busy,
+                    onClick = onDismissRequest
+                ) {
+                    Text(text = stringResource(R.string.cancel))
+                }
             }
         },
     )
