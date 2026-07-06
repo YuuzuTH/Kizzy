@@ -19,6 +19,12 @@ import androidx.core.os.LocaleListCompat
 import com.my.kizzy.resources.R
 
 // Languages Index number
+// NOTE: THAI/JAPANESE keep their original (non-sequential) index values from
+// when 24 languages were supported, instead of being renumbered to 2/3. This
+// is deliberate: Prefs.LANGUAGE stores this raw Int, so keeping the same
+// numbers means existing installs that already had Thai/Japanese selected
+// don't get silently reset to system default after this trim. Do not
+// renumber these without a migration.
 const val SYSTEM_DEFAULT = 0
 private const val ENGLISH = 1
 private const val THAI = 18

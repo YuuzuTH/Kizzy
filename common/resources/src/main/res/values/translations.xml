@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Modify This according to locale_$folder-name
-        eg: if you added translation in values/fil then use locale_fil
+        eg: if you added translation in values/th then use locale_th
+        Only en/th/ja are supported right now (see LangPrefs.kt) — more
+        languages will return later via an auto-translate system.
     -->
     <string name="locale_en" translatable="false">English</string>
     <string name="locale_th" translatable="false">ภาษาไทย</string>
