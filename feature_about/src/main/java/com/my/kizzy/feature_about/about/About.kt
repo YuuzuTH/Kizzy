@@ -36,6 +36,7 @@ const val github_Repository = "https://github.com/YuuzuTH/Kizzy"
 const val github_Release = "$github_Repository/releases"
 const val github_Issues = "$github_Repository/issues/new"
 const val github_privacy_policy = "$github_Repository/blob/master/TERMS_OF_SERVICE.md"
+const val github_original_repository = "https://github.com/dead8309/Kizzy"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,12 +110,21 @@ fun About(
                     navigateToCredits()
                 }
             }
-            item { 
+            item {
                 SettingItem(
                     title = stringResource(id = R.string.version),
                     description = BuildConfig.VERSION_NAME,
                     icon = Icons.Outlined.Info
                 ) {
+                }
+            }
+            item {
+                SettingItem(
+                    title = stringResource(id = R.string.based_on_kizzy),
+                    description = stringResource(id = R.string.based_on_kizzy_desc),
+                    icon = Icons.Outlined.Link
+                ) {
+                    openUrl(github_original_repository)
                 }
             }
         }

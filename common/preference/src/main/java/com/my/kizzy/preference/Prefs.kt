@@ -178,6 +178,11 @@ object Prefs {
     const val THEME_COLOR = "theme_color"
     const val CUSTOM_THEME_COLOR = "custom_theme_color"
     const val IS_FIRST_LAUNCHED = "is_first_launched"
+    // Shown once on app launch: credit to the original dead8309/Kizzy project,
+    // GPL-3.0 terms, and the Discord-affiliation/user-token disclaimers.
+    // Defaults false so existing installs (upgrading into the version that adds
+    // this) see it once too, same as brand new installs.
+    const val CREDIT_DIALOG_SHOWN = "credit_dialog_shown"
     const val CUSTOM_ACTIVITY_TYPE = "custom_activity_type"
     // App-Detection poll interval in milliseconds (how often it re-checks the foreground app).
     // Fast 2s / Normal 5s / Battery-saver 10s. Default = Fast (matches the previous hardcoded 2s).

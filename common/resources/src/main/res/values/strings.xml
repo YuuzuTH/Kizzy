@@ -260,4 +260,13 @@
     <string name="set_imgur_client_id">Set Imgur Client ID</string>
     <string name="set_imgur_client_id_desc">If images aren\'t showing using Imgur, you can try setting your own Client ID</string>
     <string name="show_song_as_title">Show Song as Title</string>
+
+    <!-- Credit / license dialog (shown once on first launch) -->
+    <string name="credit_dialog_title">About This App</string>
+    <string name="credit_dialog_message">Kizzy by Yuzu夕 is built on top of Kizzy by dead8309, licensed under GPL-3.0 — free to use and modify, but any modified version must stay open source.\n\nThis app is not affiliated with, endorsed by, or connected to Discord Inc. Using a Discord user token is against Discord\'s Terms of Service and is done at your own risk.</string>
+    <string name="credit_dialog_original_repo">Original project: github.com/dead8309/Kizzy</string>
+    <string name="credit_dialog_fork_repo">This fork: github.com/YuuzuTH/Kizzy</string>
+    <string name="acknowledge">Acknowledge</string>
+    <string name="based_on_kizzy">Based on Kizzy by dead8309 (GPL-3.0)</string>
+    <string name="based_on_kizzy_desc">View the original project this app is built on</string>
 </resources>

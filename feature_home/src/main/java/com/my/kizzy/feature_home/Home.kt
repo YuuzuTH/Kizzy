@@ -76,8 +76,10 @@ import com.my.kizzy.feature_home.feature.HomeFeature
 import com.my.kizzy.feature_home.feature.ToolTipContent
 import com.my.kizzy.feature_rpc_base.services.KizzyTileService
 import com.my.kizzy.feature_settings.SettingsDrawer
+import com.my.kizzy.preference.Prefs
 import com.my.kizzy.resources.R
 import com.my.kizzy.ui.components.ChipSection
+import com.my.kizzy.ui.components.CreditDialog
 import com.my.kizzy.ui.components.UpdateDialog
 import kotlinx.coroutines.launch
 
@@ -104,6 +106,9 @@ fun Home(
     }
     var showUpdateDialog by remember {
         mutableStateOf(false)
+    }
+    var showCreditDialog by remember {
+        mutableStateOf(!Prefs[Prefs.CREDIT_DIALOG_SHOWN, false])
     }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -269,6 +274,14 @@ fun Home(
                         }
                     }
                 }
+            }
+            if (showCreditDialog) {
+                CreditDialog(
+                    onAcknowledge = {
+                        Prefs[Prefs.CREDIT_DIALOG_SHOWN] = true
+                        showCreditDialog = false
+                    }
+                )
             }
             when (state) {
                 is HomeScreenState.LoadingCompleted -> {
