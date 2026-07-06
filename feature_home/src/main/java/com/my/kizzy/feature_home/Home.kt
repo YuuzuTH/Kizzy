@@ -95,6 +95,11 @@ private const val AUTO_UPDATE_CHECK_THROTTLE_MS = 24L * 60L * 60L * 1000L
 fun Home(
     state: HomeScreenState,
     checkForUpdates: () -> Unit,
+    // Unlike checkForUpdates() (used by the manual toolbar tap), this always hits the
+    // network — it never takes the "already know a newer version from cache" shortcut.
+    // Used by the throttled silent auto-check below: the whole point of that check is
+    // to notice a release published since the last check, which a cache replay can't do.
+    forceRefreshUpdates: () -> Unit = checkForUpdates,
     downloadState: UpdateDownloadState = UpdateDownloadState.Idle,
     onDownloadUpdate: (downloadUrl: String, versionName: String) -> Unit = { _, _ -> },
     features: List<HomeFeature>,
@@ -150,12 +155,31 @@ fun Home(
     // will run again if the user navigates away from and back to Home, but the Prefs
     // timestamp check below still enforces the real 24h throttle across that.
     LaunchedEffect(Unit) {
-        val now = System.currentTimeMillis()
-        val lastCheck = Prefs[Prefs.LAST_UPDATE_CHECK_TIME, 0L]
-        if (now - lastCheck > AUTO_UPDATE_CHECK_THROTTLE_MS) {
-            Prefs[Prefs.LAST_UPDATE_CHECK_TIME] = now
+        val pendingTag = Prefs[Prefs.PENDING_UPDATE_TAG, ""]
+        val cachedRelease = if (pendingTag.isNotEmpty()) Prefs.getSavedLatestRelease() else null
+        val resumingCriticalDialog = cachedRelease != null &&
+            cachedRelease.tagName == pendingTag &&
+            cachedRelease.isCritical()
+
+        if (resumingCriticalDialog) {
+            // A critical release was already known-pending before this launch — e.g.
+            // the process died (or the user force-closed the app) while its
+            // non-dismissable dialog was showing. Restore it from the local cache
+            // immediately: no network round-trip needed, and deliberately NOT subject
+            // to the 24h throttle below — a forced update can't quietly go away just
+            // because the app got killed once. checkForUpdates() (not
+            // forceRefreshUpdates()) is correct here: the cached release is already
+            // known newer, so it takes the synchronous cache-restore path.
             isSilentUpdateCheck = true
             checkForUpdates()
+        } else {
+            val now = System.currentTimeMillis()
+            val lastCheck = Prefs[Prefs.LAST_UPDATE_CHECK_TIME, 0L]
+            if (now - lastCheck > AUTO_UPDATE_CHECK_THROTTLE_MS) {
+                Prefs[Prefs.LAST_UPDATE_CHECK_TIME] = now
+                isSilentUpdateCheck = true
+                forceRefreshUpdates()
+            }
         }
     }
 

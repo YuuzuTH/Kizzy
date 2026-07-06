@@ -111,6 +111,9 @@ internal fun ComponentActivity.Kizzy(
                             viewModel.getLatestUpdate()
                         }
                     },
+                    forceRefreshUpdates = {
+                        viewModel.getLatestUpdate()
+                    },
                     downloadState = downloadState,
                     onDownloadUpdate = { url, versionName ->
                         viewModel.downloadUpdate(url, versionName)
