@@ -361,12 +361,6 @@ class KizzyRPC(
             Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize))
         else null
         val effectiveType = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0]
-        // TEMP DIAGNOSTIC (Tier 1.1 timer bug) — confirm on-wire payload before trusting the
-        // Discord-client-cache theory. Remove once confirmed via the in-app Logs screen.
-        logger.d(
-            tag = "KizzyRPC",
-            event = "updateRPC enableTimestamps=$enableTimestamps timestamps=${time.takeIf { enableTimestamps == true }}"
-        )
         // Per-call buttons win when provided (App Detection per-app overrides); otherwise fall
         // back to whatever was set on the builder — keeps Media/Experimental byte-identical.
         val effectiveButtonLabels: List<String>

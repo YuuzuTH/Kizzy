@@ -32,7 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -90,7 +89,6 @@ fun AppOverrideDialog(
     var button2Text by rememberSaveable { mutableStateOf(initial.button2Text.orEmpty()) }
     var button2Url by rememberSaveable { mutableStateOf(initial.button2Url.orEmpty()) }
     var activityType by rememberSaveable { mutableStateOf(initial.activityType ?: 0) }
-    var showTimestamps by rememberSaveable { mutableStateOf(initial.showTimestamps ?: true) }
     var status by rememberSaveable { mutableStateOf(initial.status) }
     var partyCurrent by rememberSaveable { mutableStateOf(initial.partyCurrentSize?.toString().orEmpty()) }
     var partyMax by rememberSaveable { mutableStateOf(initial.partyMaxSize?.toString().orEmpty()) }
@@ -111,7 +109,6 @@ fun AppOverrideDialog(
         button1Url = button1Url.trim().ifBlank { null },
         button2Text = button2Text.trim().ifBlank { null },
         button2Url = button2Url.trim().ifBlank { null },
-        showTimestamps = showTimestamps,
         status = status,
         partyCurrentSize = partyCurrent.toIntOrNull(),
         partyMaxSize = partyMax.toIntOrNull(),
@@ -200,25 +197,6 @@ fun AppOverrideDialog(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-
-                // Discord doesn't render an elapsed timer for the Streaming type (it shows
-                // "LIVE" instead), so the toggle is meaningless there — hide it to avoid confusion.
-                if (activityType != 1) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.app_override_show_timestamps),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Switch(checked = showTimestamps, onCheckedChange = { showTimestamps = it })
-                    }
-                }
-
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.app_override_hint),

@@ -148,7 +148,6 @@
     <string name="app_override_button1_url">Button 1 URL</string>
     <string name="app_override_button2">Button 2 label</string>
     <string name="app_override_button2_url">Button 2 URL</string>
-    <string name="app_override_show_timestamps">Show elapsed time</string>
     <string name="app_override_section_text">Text</string>
     <string name="app_override_section_images">Images</string>
     <string name="app_override_section_buttons">Buttons</string>

@@ -151,7 +151,6 @@
     <string name="app_override_button1_url">ลิงก์ปุ่มที่ 1</string>
     <string name="app_override_button2">ป้ายปุ่มที่ 2</string>
     <string name="app_override_button2_url">ลิงก์ปุ่มที่ 2</string>
-    <string name="app_override_show_timestamps">แสดงเวลาที่ผ่านไป</string>
     <string name="app_override_section_text">ข้อความ</string>
     <string name="app_override_section_images">รูปภาพ</string>
     <string name="app_override_section_buttons">ปุ่ม</string>
