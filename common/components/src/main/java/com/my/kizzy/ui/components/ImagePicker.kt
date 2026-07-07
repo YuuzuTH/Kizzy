@@ -88,6 +88,7 @@ fun UploadDialog(
             if (image.value != null) {
                 TextButton(
                     shape = RoundedCornerShape(8.dp),
+                    enabled = !showProgress,
                     onClick = {
                         onPicked(image.value!!)
                     },
