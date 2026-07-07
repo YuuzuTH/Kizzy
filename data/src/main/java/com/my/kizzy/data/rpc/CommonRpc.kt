@@ -31,7 +31,10 @@ data class CommonRpc(
     // where buttons come from whatever was set on the KizzyRPC builder.
     val buttons: List<RpcButton>? = null,
     // Streaming URL — only meaningful with activity type 1 (Streaming). null = unchanged.
-    val streamUrl: String? = null
+    val streamUrl: String? = null,
+    // Per-call profile status ("online"/"idle"/"dnd"). null preserves the previous behaviour
+    // where status comes from whatever was set on the KizzyRPC builder (Media/Experimental RPC).
+    val status: String? = null,
 )
 
 /** A single Rich Presence button: a [label] and the [url] it opens. */

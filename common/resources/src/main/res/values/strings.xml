@@ -153,6 +153,16 @@
     <string name="app_override_section_images">Images</string>
     <string name="app_override_section_buttons">Buttons</string>
     <string name="app_override_buttons_hint">A button needs both a label and a URL to show. Note: Discord hides your own buttons from you — you won\'t see them on your profile, but other people will.</string>
+    <string name="app_override_section_status">Status</string>
+    <string name="app_override_status_default">Default</string>
+    <string name="app_override_status_online">Online</string>
+    <string name="app_override_status_idle">Idle</string>
+    <string name="app_override_status_dnd">Do Not Disturb</string>
+    <string name="app_override_section_party">Party size</string>
+    <string name="app_override_party_current">Current</string>
+    <string name="app_override_party_max">Max</string>
+    <string name="app_override_char_limit_warning">Will be cut off at 128 characters</string>
+    <string name="app_override_section_preview">Preview</string>
     <string name="activity_type_playing">Playing</string>
     <string name="activity_type_streaming">Streaming</string>
     <string name="activity_type_listening">Listening</string>

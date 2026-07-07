@@ -95,6 +95,9 @@ object AppRpcOverrides {
             button2Text = str(o?.button2Text),
             button2Url = str(o?.button2Url),
             showTimestamps = o?.showTimestamps ?: true,
+            status = str(o?.status) ?: Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"],
+            partyCurrentSize = o?.partyCurrentSize.takeIf { o?.partyMaxSize != null },
+            partyMaxSize = o?.partyMaxSize.takeIf { o?.partyCurrentSize != null },
         )
     }
 }
@@ -118,6 +121,9 @@ data class ResolvedAppRpc(
     val button2Text: String?,
     val button2Url: String?,
     val showTimestamps: Boolean,
+    val status: String,
+    val partyCurrentSize: Int?,
+    val partyMaxSize: Int?,
 ) {
     /** True when this app has at least one presence button configured. */
     val hasButtons: Boolean get() = !button1Text.isNullOrBlank() || !button2Text.isNullOrBlank()

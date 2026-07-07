@@ -354,8 +354,12 @@ class KizzyRPC(
         var time = Timestamps(start = startTimestamps)
         if (commonRpc.time != null)
             Timestamps(end = commonRpc.time.end, start = commonRpc.time.start).also { time = it }
-        if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
-            Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize)).also { party = it }
+        // Always explicit from this call's party fields (not the builder's persisted [party])
+        // so switching to an app without a party clears the previous app's instead of
+        // inheriting it — same class of fix as the per-call buttons below.
+        val effectiveParty = if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
+            Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize))
+        else null
         val effectiveType = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0]
         // TEMP DIAGNOSTIC (Tier 1.1 timer bug) — confirm on-wire payload before trusting the
         // Discord-client-cache theory. Remove once confirmed via the in-app Logs screen.
@@ -390,7 +394,7 @@ class KizzyRPC(
                                 largeText = commonRpc.largeText?.sanitize(),
                                 smallText = commonRpc.smallText?.sanitize()
                             ).takeIf { commonRpc.largeImage != null || commonRpc.smallImage != null },
-                        party = party.takeIf { party != null },
+                        party = effectiveParty,
                         buttons = effectiveButtonLabels.takeIf { it.isNotEmpty() },
                         metadata = Metadata(buttonUrls = effectiveButtonUrls).takeIf { effectiveButtonUrls.isNotEmpty() },
                         applicationId = applicationIdFor(effectiveType),
@@ -402,7 +406,7 @@ class KizzyRPC(
                 // Prefer the fresh start from the incoming update (e.g. an app switch)
                 // so `since` doesn't stay pinned to the first activity's start time.
                 since = commonRpc.time?.start ?: startTimestamps,
-                status = this.status
+                status = commonRpc.status ?: this.status
             )
         )
     }

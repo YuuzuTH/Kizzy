@@ -6,14 +6,21 @@
 
 package com.my.kizzy.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,13 +43,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.data.utils.uriToFile
 import com.my.kizzy.resources.R
+import com.my.kizzy.ui.theme.DISCORD_BLURPLE
 import java.io.File
 
 /**
@@ -80,6 +91,9 @@ fun AppOverrideDialog(
     var button2Url by rememberSaveable { mutableStateOf(initial.button2Url.orEmpty()) }
     var activityType by rememberSaveable { mutableStateOf(initial.activityType ?: 0) }
     var showTimestamps by rememberSaveable { mutableStateOf(initial.showTimestamps ?: true) }
+    var status by rememberSaveable { mutableStateOf(initial.status) }
+    var partyCurrent by rememberSaveable { mutableStateOf(initial.partyCurrentSize?.toString().orEmpty()) }
+    var partyMax by rememberSaveable { mutableStateOf(initial.partyMaxSize?.toString().orEmpty()) }
 
     val hasExisting = remember { !initial.isEmpty }
 
@@ -98,6 +112,9 @@ fun AppOverrideDialog(
         button2Text = button2Text.trim().ifBlank { null },
         button2Url = button2Url.trim().ifBlank { null },
         showTimestamps = showTimestamps,
+        status = status,
+        partyCurrentSize = partyCurrent.toIntOrNull(),
+        partyMaxSize = partyMax.toIntOrNull(),
     )
 
     AlertDialog(
@@ -113,10 +130,23 @@ fun AppOverrideDialog(
                 )
                 Spacer(Modifier.height(12.dp))
 
+                Section(stringResource(R.string.app_override_section_preview))
+                PresenceCardPreview(
+                    name = name,
+                    defaultName = appName,
+                    details = details,
+                    state = state,
+                    imageUrl = imageUrl,
+                    smallImageUrl = smallImageUrl,
+                    partyCurrent = partyCurrent.toIntOrNull(),
+                    partyMax = partyMax.toIntOrNull(),
+                )
+                Spacer(Modifier.height(8.dp))
+
                 Section(stringResource(R.string.app_override_section_text))
                 Field(name, { name = it }, R.string.app_override_name)
-                Field(details, { details = it }, R.string.app_override_details)
-                Field(state, { state = it }, R.string.app_override_state)
+                Field(details, { details = it }, R.string.app_override_details, charLimited = true)
+                Field(state, { state = it }, R.string.app_override_state, charLimited = true)
 
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.app_override_activity_type))
@@ -128,9 +158,9 @@ fun AppOverrideDialog(
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.app_override_section_images))
                 ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
-                Field(largeText, { largeText = it }, R.string.app_override_large_text)
+                Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
                 ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
-                Field(smallText, { smallText = it }, R.string.app_override_small_text)
+                Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
 
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.app_override_section_buttons))
@@ -144,10 +174,38 @@ fun AppOverrideDialog(
                     color = MaterialTheme.colorScheme.outline,
                 )
 
+                Spacer(Modifier.height(8.dp))
+                Section(stringResource(R.string.app_override_section_status))
+                StatusRow(selected = status, onSelect = { status = it })
+
+                Spacer(Modifier.height(8.dp))
+                Section(stringResource(R.string.app_override_section_party))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = partyCurrent,
+                        // Capped so a long paste can't silently overflow Int (toIntOrNull() would
+                        // return null past ~10 digits and drop the party with no visible warning).
+                        onValueChange = { partyCurrent = it.filter(Char::isDigit).take(9) },
+                        label = { Text(stringResource(R.string.app_override_party_current)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = partyMax,
+                        onValueChange = { partyMax = it.filter(Char::isDigit).take(9) },
+                        label = { Text(stringResource(R.string.app_override_party_max)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+
                 // Discord doesn't render an elapsed timer for the Streaming type (it shows
                 // "LIVE" instead), so the toggle is meaningless there — hide it to avoid confusion.
                 if (activityType != 1) {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -194,12 +252,17 @@ private fun Section(title: String) {
     Spacer(Modifier.height(4.dp))
 }
 
+// Discord truncates these fields at 128 chars server-side (KizzyRPC.sanitize()) — surface
+// that limit here so it's not a silent surprise once the presence renders.
+private const val RPC_FIELD_CHAR_LIMIT = 128
+
 @Composable
 private fun Field(
     value: String,
     onValueChange: (String) -> Unit,
     labelRes: Int,
     keyboardType: KeyboardType = KeyboardType.Text,
+    charLimited: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
@@ -209,6 +272,14 @@ private fun Field(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         modifier = Modifier.fillMaxWidth(),
     )
+    if (charLimited && value.length > RPC_FIELD_CHAR_LIMIT) {
+        Text(
+            text = "${value.length}/$RPC_FIELD_CHAR_LIMIT — " +
+                stringResource(R.string.app_override_char_limit_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
     Spacer(Modifier.height(8.dp))
 }
 
@@ -278,4 +349,114 @@ private fun ActivityTypeRow(selected: Int, onSelect: (Int) -> Unit) {
         }
     }
     Spacer(Modifier.height(8.dp))
+}
+
+/** [selected] is null for "inherit the global default" — the other three map to Discord's
+ *  real profile-status values (online/idle/dnd) the same way [AppRpcOverride.status] does. */
+@Composable
+private fun StatusRow(selected: String?, onSelect: (String?) -> Unit) {
+    val options = listOf(
+        null to R.string.app_override_status_default,
+        "online" to R.string.app_override_status_online,
+        "idle" to R.string.app_override_status_idle,
+        "dnd" to R.string.app_override_status_dnd,
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { (value, labelRes) ->
+            FilterChip(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                label = { Text(stringResource(labelRes)) },
+            )
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+}
+
+/** An already-uploaded Discord asset (from [ImageField]'s picker) is stored as a bare
+ *  `attachments/...`/`external/...` id, same convention [RpcImage] uses elsewhere — everything
+ *  else is treated as a direct URL. Preview-only cosmetics; the real upload/proxy resolution
+ *  happens server-side in [com.my.kizzy.data.rpc.RpcImage]. */
+private fun previewImageModel(raw: String): String? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return null
+    return if (trimmed.startsWith("attachments") || trimmed.startsWith("external"))
+        "https://media.discordapp.net/$trimmed"
+    else trimmed
+}
+
+/** Static mock of how this override will render on a Discord profile — same visual language
+ *  as the real presence card ([com.my.kizzy.feature_profile.ui.component.ActivityRow]) but
+ *  driven directly by the dialog's live field state instead of a network-fetched presence, so
+ *  it updates on every keystroke without an elapsed-timer tick. */
+@Composable
+private fun PresenceCardPreview(
+    name: String,
+    defaultName: String,
+    details: String,
+    state: String,
+    imageUrl: String,
+    smallImageUrl: String,
+    partyCurrent: Int?,
+    partyMax: Int?,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+            .padding(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(DISCORD_BLURPLE),
+            contentAlignment = Alignment.Center,
+        ) {
+            previewImageModel(imageUrl)?.let { model ->
+                AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                )
+            }
+            previewImageModel(smallImageUrl)?.let { model ->
+                AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .align(Alignment.BottomEnd),
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        // Mirrors ActivityRow.kt's real rendering rule: party only ever shows appended to a
+        // non-blank state line, and only when both sides are positive (0 of anything = no party).
+        val partyLabel = if (state.isNotBlank() && partyCurrent != null && partyMax != null &&
+            partyCurrent > 0 && partyMax > 0 && partyCurrent <= partyMax
+        ) " " + stringResource(R.string.user_profile_party, partyCurrent, partyMax) else ""
+        Column {
+            Text(
+                text = name.ifBlank { defaultName },
+                style = MaterialTheme.typography.titleSmall,
+            )
+            if (details.isNotBlank()) {
+                Text(text = details, style = MaterialTheme.typography.bodySmall)
+            }
+            if (state.isNotBlank()) {
+                Text(text = state + partyLabel, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
 }

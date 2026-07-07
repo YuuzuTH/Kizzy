@@ -34,6 +34,11 @@ import kotlinx.serialization.Serializable
  * @property button2Url    URL the second button opens.
  * @property showTimestamps Whether to show the "elapsed" timer. null ⇒ inherit the mode default
  *                          (App Detection shows it). false ⇒ force it off for this app.
+ * @property status         Profile status while this app is foreground: "online"/"idle"/"dnd".
+ *                          null ⇒ inherit the global default (Settings > custom status).
+ * @property partyCurrentSize Current party size shown next to the presence. null (with
+ *                            [partyMaxSize]) ⇒ no party shown.
+ * @property partyMaxSize   Max party size. Only takes effect together with [partyCurrentSize].
  */
 @Serializable
 data class AppRpcOverride(
@@ -51,6 +56,9 @@ data class AppRpcOverride(
     val button2Text: String? = null,
     val button2Url: String? = null,
     val showTimestamps: Boolean? = null,
+    val status: String? = null,
+    val partyCurrentSize: Int? = null,
+    val partyMaxSize: Int? = null,
 ) {
     /**
      * True when the override carries no meaningful customization, so it can be dropped from
@@ -71,7 +79,10 @@ data class AppRpcOverride(
             button2Text.isNullOrBlank() &&
             button2Url.isNullOrBlank() &&
             (activityType == null || activityType == 0) &&
-            (showTimestamps == null || showTimestamps)
+            (showTimestamps == null || showTimestamps) &&
+            status.isNullOrBlank() &&
+            partyCurrentSize == null &&
+            partyMaxSize == null
 
     /** True when any presence-text/image customization is set (used to flag a "customized" app). */
     val hasCustomization: Boolean

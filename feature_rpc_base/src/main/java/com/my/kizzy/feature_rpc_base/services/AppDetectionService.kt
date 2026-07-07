@@ -290,7 +290,10 @@ class AppDetectionService : Service() {
                     // Always explicit (empty = no buttons) so switching to an app without
                     // buttons clears the previous app's instead of inheriting them.
                     buttons = buttons ?: emptyList(),
-                    streamUrl = rpc.streamUrl
+                    streamUrl = rpc.streamUrl,
+                    partyCurrentSize = rpc.partyCurrentSize,
+                    partyMaxSize = rpc.partyMaxSize,
+                    status = rpc.status
                 ),
                 enableTimestamps = rpc.showTimestamps
             )
@@ -304,7 +307,8 @@ class AppDetectionService : Service() {
                 setDetails(rpc.details)
                 setState(rpc.state)
                 if (rpc.showTimestamps) setStartTimestamps(startTime)
-                setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
+                setStatus(rpc.status)
+                setPartySize(rpc.partyCurrentSize, rpc.partyMaxSize)
                 setLargeImage(rpc.largeImage, rpc.largeText)
                 setSmallImage(rpc.smallImage, rpc.smallText)
                 setStreamUrl(rpc.streamUrl)
