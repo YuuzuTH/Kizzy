@@ -204,6 +204,8 @@
     <string name="party_max">จำนวนสมาชิกปาร์ตี้สูงสุด</string>
     <string name="user_profile_party">(%1$d จาก %2$d)</string>
     <string name="auto_scroll">เลื่อนอัตโนมัติ</string>
+    <string name="send_debug_log">ส่ง log ช่วยดีบัค</string>
+    <string name="debug_log_sent">ส่ง log แล้ว</string>
     <string name="party_invalid_number">จำนวนสมาชิกปาร์ตี้ต้องเป็นตัวเลขจำนวนเต็ม</string>
     <string name="party_less_than_zero">จำนวนสมาชิกปาร์ตี้ต้องมากกว่าศูนย์</string>
     <string name="party_greater_than_max">จำนวนสมาชิกปัจจุบันต้องไม่เกินจำนวนสูงสุด</string>

@@ -152,6 +152,8 @@
     <string name="party_max">Party Max Size</string>
     <string name="user_profile_party">(%1$d of %2$d)</string>
     <string name="auto_scroll">Auto scroll</string>
+    <string name="send_debug_log">Send debug log</string>
+    <string name="debug_log_sent">Log sent</string>
     <string name="party_invalid_number">Party size must be an integer</string>
     <string name="party_less_than_zero">Party size must be greater than zero</string>
     <string name="party_greater_than_max">Current party size must not exceed max party size</string>

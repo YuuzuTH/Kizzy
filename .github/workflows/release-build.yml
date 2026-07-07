@@ -21,6 +21,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Assemble Release
+        env:
+          KIZZY_LOG_WEBHOOK: ${{ secrets.KIZZY_LOG_WEBHOOK }}
         run: ./gradlew assembleRelease
 
       - name: Upload APK
