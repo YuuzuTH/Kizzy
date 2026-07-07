@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,8 +59,12 @@ import java.io.File
 
 /**
  * Full per-app presence editor: custom name, details/state, large & small images with
- * tooltips, activity type, stream URL, two buttons and an elapsed-time toggle. Purely
+ * tooltips, activity type, stream URL, two buttons, status and party size. Purely
  * presentational — the caller persists the returned [AppRpcOverride]. Clearing removes it.
+ *
+ * All fields are hoisted to this top level with [rememberSaveable] and the tab body below is
+ * just a `when` over [selectedTab] — so switching tabs never loses an edit in progress, it only
+ * changes which fields are currently visible. Each tab owns its own scroll state.
  *
  * The activity types offered map to Discord's verbs; note "Streaming" (1) only renders when a
  * valid Twitch/YouTube [AppRpcOverride.streamUrl] is set, which is why that field sits next to it.
@@ -94,6 +100,7 @@ fun AppOverrideDialog(
     var partyMax by rememberSaveable { mutableStateOf(initial.partyMaxSize?.toString().orEmpty()) }
 
     val hasExisting = remember { !initial.isEmpty }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     fun collect() = AppRpcOverride(
         name = name.trim().ifBlank { null },
@@ -119,90 +126,122 @@ fun AppOverrideDialog(
         icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
         title = { Text(text = stringResource(R.string.app_override_title)) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Column {
                 Text(
                     text = appName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.outline,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
 
-                Section(stringResource(R.string.app_override_section_preview))
-                PresenceCardPreview(
-                    name = name,
-                    defaultName = appName,
-                    details = details,
-                    state = state,
-                    imageUrl = imageUrl,
-                    smallImageUrl = smallImageUrl,
-                    partyCurrent = partyCurrent.toIntOrNull(),
-                    partyMax = partyMax.toIntOrNull(),
+                // Tab titles reuse the same section-title strings the fields used to be grouped
+                // under when this was one long scrolling form — same wording, just no longer
+                // stacked vertically. selectedTab lives above this composable (rememberSaveable)
+                // so rotation/process-death restores the tab the user was on.
+                val tabTitles = listOf(
+                    R.string.app_override_section_text,
+                    R.string.app_override_section_images,
+                    R.string.app_override_section_buttons,
+                    R.string.app_override_tab_status_party,
+                    R.string.app_override_section_preview,
                 )
-                Spacer(Modifier.height(8.dp))
-
-                Section(stringResource(R.string.app_override_section_text))
-                Field(name, { name = it }, R.string.app_override_name)
-                Field(details, { details = it }, R.string.app_override_details, charLimited = true)
-                Field(state, { state = it }, R.string.app_override_state, charLimited = true)
-
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.app_override_activity_type))
-                ActivityTypeRow(selected = activityType, onSelect = { activityType = it })
-                if (activityType == 1) {
-                    Field(streamUrl, { streamUrl = it }, R.string.app_override_stream_url, KeyboardType.Uri)
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.app_override_section_images))
-                ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
-                Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
-                ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
-                Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
-
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.app_override_section_buttons))
-                Field(button1Text, { button1Text = it }, R.string.app_override_button1)
-                Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri)
-                Field(button2Text, { button2Text = it }, R.string.app_override_button2)
-                Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri)
-                Text(
-                    text = stringResource(R.string.app_override_buttons_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                )
-
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.app_override_section_status))
-                StatusRow(selected = status, onSelect = { status = it })
-
-                Spacer(Modifier.height(8.dp))
-                Section(stringResource(R.string.app_override_section_party))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = partyCurrent,
-                        // Capped so a long paste can't silently overflow Int (toIntOrNull() would
-                        // return null past ~10 digits and drop the party with no visible warning).
-                        onValueChange = { partyCurrent = it.filter(Char::isDigit).take(9) },
-                        label = { Text(stringResource(R.string.app_override_party_current)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = partyMax,
-                        onValueChange = { partyMax = it.filter(Char::isDigit).take(9) },
-                        label = { Text(stringResource(R.string.app_override_party_max)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                    )
+                TabRow(selectedTabIndex = selectedTab) {
+                    tabTitles.forEachIndexed { index, titleRes ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(stringResource(titleRes), maxLines = 1) },
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.app_override_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                )
+
+                // Each branch gets its own fresh scroll state — intentional: these are separate
+                // screens now, not one form, so there's no shared scroll position to preserve.
+                // Field *values* themselves are hoisted above and untouched by tab switches.
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    when (selectedTab) {
+                        0 -> {
+                            Field(name, { name = it }, R.string.app_override_name)
+                            Field(details, { details = it }, R.string.app_override_details, charLimited = true)
+                            Field(state, { state = it }, R.string.app_override_state, charLimited = true)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.app_override_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
+
+                        1 -> {
+                            ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
+                            Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
+                            ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
+                            Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
+                        }
+
+                        2 -> {
+                            Field(button1Text, { button1Text = it }, R.string.app_override_button1)
+                            Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri)
+                            Field(button2Text, { button2Text = it }, R.string.app_override_button2)
+                            Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri)
+                            Text(
+                                text = stringResource(R.string.app_override_buttons_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
+
+                        3 -> {
+                            Section(stringResource(R.string.app_override_activity_type))
+                            ActivityTypeRow(selected = activityType, onSelect = { activityType = it })
+                            if (activityType == 1) {
+                                Field(streamUrl, { streamUrl = it }, R.string.app_override_stream_url, KeyboardType.Uri)
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                            Section(stringResource(R.string.app_override_section_status))
+                            StatusRow(selected = status, onSelect = { status = it })
+
+                            Spacer(Modifier.height(8.dp))
+                            Section(stringResource(R.string.app_override_section_party))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = partyCurrent,
+                                    // Capped so a long paste can't silently overflow Int (toIntOrNull()
+                                    // would return null past ~10 digits and drop the party with no
+                                    // visible warning).
+                                    onValueChange = { partyCurrent = it.filter(Char::isDigit).take(9) },
+                                    label = { Text(stringResource(R.string.app_override_party_current)) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                OutlinedTextField(
+                                    value = partyMax,
+                                    onValueChange = { partyMax = it.filter(Char::isDigit).take(9) },
+                                    label = { Text(stringResource(R.string.app_override_party_max)) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+
+                        else -> {
+                            PresenceCardPreview(
+                                name = name,
+                                defaultName = appName,
+                                details = details,
+                                state = state,
+                                imageUrl = imageUrl,
+                                smallImageUrl = smallImageUrl,
+                                partyCurrent = partyCurrent.toIntOrNull(),
+                                partyMax = partyMax.toIntOrNull(),
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {

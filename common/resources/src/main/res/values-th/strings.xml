@@ -165,6 +165,7 @@
     <string name="app_override_party_max">สูงสุด</string>
     <string name="app_override_char_limit_warning">จะถูกตัดที่ 128 ตัวอักษร</string>
     <string name="app_override_section_preview">ตัวอย่าง</string>
+    <string name="app_override_tab_status_party">สถานะ+ปาร์ตี้</string>
     <string name="activity_type_playing">กำลังเล่น</string>
     <string name="activity_type_streaming">กำลังสตรีม</string>
     <string name="activity_type_listening">กำลังฟัง</string>

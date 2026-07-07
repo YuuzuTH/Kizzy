@@ -162,6 +162,7 @@
     <string name="app_override_party_max">Max</string>
     <string name="app_override_char_limit_warning">Will be cut off at 128 characters</string>
     <string name="app_override_section_preview">Preview</string>
+    <string name="app_override_tab_status_party">Status &amp; Party</string>
     <string name="activity_type_playing">Playing</string>
     <string name="activity_type_streaming">Streaming</string>
     <string name="activity_type_listening">Listening</string>
