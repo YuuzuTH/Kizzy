@@ -67,3 +67,25 @@ fun getLanguageDesc(language: Int = getLanguageNumber()): String {
         }
     )
 }
+
+// Raw device language tag (e.g. "fr", "vi"), independent of whether we ship static
+// values-<lang> resources for it. Used only to decide whether on-device auto-translate
+// should kick in — see [autoTranslateTargetTag].
+private fun getSystemLanguageTag(): String =
+    LocaleListCompat.getAdjustedDefault()[0]?.language ?: languages[ENGLISH]!!
+
+/**
+ * The language on-device auto-translate should render the UI in, or null if it isn't
+ * needed. Non-null only when the *effective* language (per [getLanguageNumber] — this
+ * correctly reflects either an explicit pick in the [Language] screen, or on API 33+ a
+ * pick made instead via the OS's own per-app-language setting, which bypasses
+ * [Prefs.LANGUAGE] entirely) resolves to SYSTEM_DEFAULT (nothing explicit pinned) *and*
+ * the device's actual system language isn't one of the three we ship static strings
+ * for. In every other case the existing static resource resolution already does the
+ * right thing and this must stay null so translation never overrides an explicit choice.
+ */
+fun autoTranslateTargetTag(): String? {
+    if (getLanguageNumber() != SYSTEM_DEFAULT) return null
+    val systemTag = getSystemLanguageTag()
+    return if (languages.containsValue(systemTag)) null else systemTag
+}

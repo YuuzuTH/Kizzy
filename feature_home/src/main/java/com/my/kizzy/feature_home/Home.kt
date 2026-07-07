@@ -31,7 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
@@ -129,6 +129,17 @@ fun Home(
     var isSilentUpdateCheck by remember {
         mutableStateOf(false)
     }
+    // Whether an update check was actually kicked off during THIS composition instance
+    // (silent auto-check below, or the manual toolbar tap) as opposed to Home simply
+    // being re-entered while the ViewModel's state already holds a completed result
+    // from an earlier check (e.g. navigating back from Settings/About/any other menu).
+    // Without this guard, LaunchedEffect(state) below re-fires on every fresh mount
+    // with that stale already-completed state — since `isSilentUpdateCheck` resets to
+    // false for the new composition, it fell into the manual-path branch and re-showed
+    // the "no update available" toast on every single menu visit.
+    var checkTriggeredThisSession by remember {
+        mutableStateOf(false)
+    }
     // Toolbar badge: mirrors Prefs.PENDING_UPDATE_TAG so it survives process death/app
     // restart. Re-read on resume (below) and whenever a check completes (further down),
     // not just once at first composition.
@@ -171,6 +182,7 @@ fun Home(
             // forceRefreshUpdates()) is correct here: the cached release is already
             // known newer, so it takes the synchronous cache-restore path.
             isSilentUpdateCheck = true
+            checkTriggeredThisSession = true
             checkForUpdates()
         } else {
             val now = System.currentTimeMillis()
@@ -178,6 +190,7 @@ fun Home(
             if (now - lastCheck > AUTO_UPDATE_CHECK_THROTTLE_MS) {
                 Prefs[Prefs.LAST_UPDATE_CHECK_TIME] = now
                 isSilentUpdateCheck = true
+                checkTriggeredThisSession = true
                 forceRefreshUpdates()
             }
         }
@@ -189,16 +202,30 @@ fun Home(
     // otherwise driven straight off `showUpdateDialog` + `state` in the render code
     // below, same shape as before this feature existed.
     LaunchedEffect(state) {
+        // Loading is a transient midpoint — wait for the terminal Completed/Error
+        // result before consuming (and resetting) the flags below. Resetting here
+        // for BOTH Completed and Error (not just Completed) avoids leaving
+        // isSilentUpdateCheck/checkTriggeredThisSession stuck true forever if a
+        // triggered check ends in Error.
+        if (state is HomeScreenState.Loading) return@LaunchedEffect
+        val triggeredThisSession = checkTriggeredThisSession
+        val wasSilent = isSilentUpdateCheck
+        checkTriggeredThisSession = false
+        isSilentUpdateCheck = false
+
         val completed = state as? HomeScreenState.LoadingCompleted ?: return@LaunchedEffect
         val needsUpdate = completed.release.toVersion()
             .whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
         val tagName = completed.release.tagName ?: ""
 
+        // Bookkeeping always runs for any completed result, even one this specific
+        // Home instance didn't itself trigger (e.g. a check that finished while the
+        // user had navigated away and back) — it's idempotent and it's the only
+        // thing keeping the toolbar badge honest across that gap.
         Prefs[Prefs.PENDING_UPDATE_TAG] = if (needsUpdate) tagName else ""
         pendingUpdateTag = Prefs[Prefs.PENDING_UPDATE_TAG, ""]
 
-        if (isSilentUpdateCheck) {
-            isSilentUpdateCheck = false
+        if (wasSilent) {
             if (needsUpdate) {
                 val alreadyDismissed = tagName.isNotEmpty() &&
                     tagName == Prefs[Prefs.LAST_DISMISSED_UPDATE_VERSION, ""]
@@ -208,11 +235,12 @@ fun Home(
             }
             // Silent path never toasts "no update available" and never forces the
             // dialog closed — it's not the silent check's place to interrupt the user.
-        } else if (!needsUpdate) {
+        } else if (triggeredThisSession && !needsUpdate) {
             // Manual path, no update available: keep the exact pre-existing toast
-            // behavior. (When an update *is* available, showUpdateDialog is already
-            // true from the toolbar tap handler, and the render code below picks it
-            // up — nothing extra needed here.)
+            // behavior. Gated on triggeredThisSession so a stale already-completed
+            // state inherited from the ViewModel on a fresh Home mount (e.g.
+            // navigating back from Settings/About) can't re-fire this toast — only
+            // a check actually kicked off in *this* composition can.
             Toast.makeText(
                 ctx,
                 ctx.getString(R.string.update_no_updates_available),
@@ -282,6 +310,7 @@ fun Home(
                             // auto-check is still in flight, so its result is
                             // handled by the manual (not silent) branch above.
                             isSilentUpdateCheck = false
+                            checkTriggeredThisSession = true
                             Toast.makeText(
                                 ctx,
                                 ctx.getString(R.string.update_check_for_update),
@@ -304,14 +333,14 @@ fun Home(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Update,
+                                    imageVector = Icons.Outlined.SystemUpdate,
                                     contentDescription = "Update",
                                     modifier = Modifier.clickable(onClick = onUpdateIconClick)
                                 )
                             }
                         } else {
                             Icon(
-                                imageVector = Icons.Outlined.Update,
+                                imageVector = Icons.Outlined.SystemUpdate,
                                 contentDescription = "Update",
                                 modifier = Modifier.clickable(onClick = onUpdateIconClick)
                             )

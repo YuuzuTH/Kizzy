@@ -16,4 +16,5 @@ dependencies {
     implementation(libs.kotlinx.coroutine)
     implementation(libs.compose.ui)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.mlkit.translate)
 }

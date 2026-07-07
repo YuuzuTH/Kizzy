@@ -2,8 +2,8 @@
 # project level
 gradle = "8.13.2"
 kotlin = "1.9.23"
-version-name = "6.4.0.000"
-version-code ="42"
+version-name = "6.5.0.000"
+version-code ="43"
 
 # app level
 accompanist = "0.31.0-alpha"
@@ -29,6 +29,7 @@ androidx-test-ext-junit = "1.2.1"
 espresso-core = "3.6.1"
 javax = "1"
 kotlinx-serialization-json = "1.6.3"
+mlkit-translate = "17.0.3"
 
 [libraries]
 
@@ -92,6 +93,9 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 
 # KotlinX
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+
+# ML Kit (on-device auto-translate for languages we don't ship static strings for)
+mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkit-translate" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "gradle" }

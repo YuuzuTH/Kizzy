@@ -266,7 +266,7 @@
 
     <!-- Credit / license dialog (shown once on first launch) -->
     <string name="credit_dialog_title">เกี่ยวกับแอปนี้</string>
-    <string name="credit_dialog_message">Kizzy by Yuzu夕 พัฒนาต่อยอดจาก Kizzy โดย dead8309 ภายใต้สัญญาอนุญาต GPL-3.0 — ใช้และแก้ไขได้ฟรี แต่เวอร์ชันที่แก้ไขต้องเปิดซอร์สโค้ดเช่นกัน\n\nแอปนี้ไม่มีความเกี่ยวข้อง ไม่ได้รับการรับรอง และไม่มีส่วนเกี่ยวข้องใดๆ กับ Discord Inc. การใช้ user token ของ Discord ขัดต่อข้อกำหนดการใช้งานของ Discord และเป็นความเสี่ยงของผู้ใช้เอง</string>
+    <string name="credit_dialog_message">D_RPC Yuzu夕 พัฒนาต่อยอดจาก Kizzy โดย dead8309 ภายใต้สัญญาอนุญาต GPL-3.0 — ใช้และแก้ไขได้ฟรี แต่เวอร์ชันที่แก้ไขต้องเปิดซอร์สโค้ดเช่นกัน\n\nแอปนี้ไม่มีความเกี่ยวข้อง ไม่ได้รับการรับรอง และไม่มีส่วนเกี่ยวข้องใดๆ กับ Discord Inc. การใช้ user token ของ Discord ขัดต่อข้อกำหนดการใช้งานของ Discord และเป็นความเสี่ยงของผู้ใช้เอง</string>
     <string name="credit_dialog_original_repo">โปรเจคต้นฉบับ: github.com/dead8309/Kizzy</string>
     <string name="credit_dialog_fork_repo">ซอร์สของฟอร์คนี้: github.com/YuuzuTH/Kizzy</string>
     <string name="acknowledge">รับทราบ</string>

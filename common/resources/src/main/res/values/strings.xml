@@ -263,7 +263,7 @@
 
     <!-- Credit / license dialog (shown once on first launch) -->
     <string name="credit_dialog_title">About This App</string>
-    <string name="credit_dialog_message">Kizzy by Yuzu夕 is built on top of Kizzy by dead8309, licensed under GPL-3.0 — free to use and modify, but any modified version must stay open source.\n\nThis app is not affiliated with, endorsed by, or connected to Discord Inc. Using a Discord user token is against Discord\'s Terms of Service and is done at your own risk.</string>
+    <string name="credit_dialog_message">D_RPC Yuzu夕 is built on top of Kizzy by dead8309, licensed under GPL-3.0 — free to use and modify, but any modified version must stay open source.\n\nThis app is not affiliated with, endorsed by, or connected to Discord Inc. Using a Discord user token is against Discord\'s Terms of Service and is done at your own risk.</string>
     <string name="credit_dialog_original_repo">Original project: github.com/dead8309/Kizzy</string>
     <string name="credit_dialog_fork_repo">This fork: github.com/YuuzuTH/Kizzy</string>
     <string name="acknowledge">Acknowledge</string>

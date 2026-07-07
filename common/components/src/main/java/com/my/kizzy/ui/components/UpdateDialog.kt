@@ -21,7 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -71,7 +71,7 @@ fun UpdateDialog(
         ),
         icon = {
             Icon(
-                imageVector = Icons.Outlined.Update,
+                imageVector = Icons.Outlined.SystemUpdate,
                 contentDescription = "Update",
             )
         },
