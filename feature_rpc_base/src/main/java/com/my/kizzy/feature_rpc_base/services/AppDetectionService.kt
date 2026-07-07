@@ -202,7 +202,10 @@ class AppDetectionService : Service() {
             // a name/timer/button/image change wouldn't show until the next app switch.
             val override = AppRpcOverrides.of(packageName)
             if (packageName != runningPackage || override != lastAppliedOverride) {
-                handleEnabledPackage(packageName, rpcButtons)
+                // Only meaningful when it's the *same* app re-applying an in-place edit —
+                // an actual app switch has no "previous state" to diff the timer against.
+                val previousOverride = lastAppliedOverride.takeIf { packageName == runningPackage }
+                handleEnabledPackage(packageName, rpcButtons, previousOverride)
                 runningPackage = packageName
                 lastAppliedOverride = override
             }
@@ -213,7 +216,11 @@ class AppDetectionService : Service() {
         }
     }
 
-    private suspend fun handleEnabledPackage(packageName: String, rpcButtons: RpcButtons) {
+    private suspend fun handleEnabledPackage(
+        packageName: String,
+        rpcButtons: RpcButtons,
+        previousOverride: AppRpcOverride?,
+    ) {
         // Build the icon once and reuse it for the RPC image and the notification —
         // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
         // it several times per switch repeats that work for nothing.
@@ -251,6 +258,18 @@ class AppDetectionService : Service() {
         }
 
         val startTime = System.currentTimeMillis()
+
+        // Turning the timer OFF for the *same still-running* app needs a brand new gateway
+        // session, not an in-place update — Discord's client keeps rendering the elapsed
+        // counter it already anchored for the current session even once the payload stops
+        // carrying `timestamps`. Only this direction needs the reconnect: turning it back ON
+        // just starts a fresh counter from a normal update, nothing stale to clear. Ordinary
+        // app switches (previousOverride null) keep updating in place exactly as before.
+        val timerTurnedOff = previousOverride != null &&
+            (previousOverride.showTimestamps ?: true) && !rpc.showTimestamps
+        if (timerTurnedOff && kizzyRPC.isRpcRunning()) {
+            kizzyRPC.closeRPC()
+        }
 
         if (kizzyRPC.isRpcRunning()) {
             // A presence is already running for the previous app. Update it in place so
