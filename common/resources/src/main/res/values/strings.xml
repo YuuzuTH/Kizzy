@@ -135,7 +135,8 @@
     <string name="app_override_title">Customize presence</string>
     <string name="app_override_name">Custom name</string>
     <string name="app_override_image">Large image URL</string>
-    <string name="app_override_hint">Leave a field blank to use the app\'s real name / icon. Image URLs must be direct links to an image.</string>
+    <string name="app_override_hint">Leave a field blank to use the app\'s real name / icon.</string>
+    <string name="app_override_image_hint">Image URLs must be direct links to an image.</string>
     <string name="app_override_clear">Clear</string>
     <string name="app_override_details">Details (line 2)</string>
     <string name="app_override_state">State (line 3)</string>
@@ -163,8 +164,10 @@
     <string name="app_override_char_limit_warning">Will be cut off at 128 characters</string>
     <string name="app_override_section_preview">Preview</string>
     <string name="app_override_tab_status_party">Status &amp; Party</string>
-    <string name="app_override_reset_confirm_message">Clear all customization for %1$s? This can\'t be undone.</string>
+    <string name="app_override_reset_confirm_message">Clear all customization for %1$s? You can undo this right after.</string>
+    <string name="app_override_party_invalid_hint">Won\'t show: current must be between 1 and max.</string>
     <string name="app_override_copy_from">Copy customization from</string>
+    <string name="app_override_copy_confirm_message">Replace your unsaved changes with this app\'s customization?</string>
     <string name="app_override_reset_snackbar_message">Customization for %1$s was cleared.</string>
     <string name="app_override_reset_snackbar_undo">Undo</string>
     <string name="activity_type_playing">Playing</string>

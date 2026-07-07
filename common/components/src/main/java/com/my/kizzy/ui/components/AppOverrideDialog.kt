@@ -145,9 +145,19 @@ fun AppOverrideDialog(
     // a closed menu is a fine default to restore to.
     var showCopyMenu by remember { mutableStateOf(false) }
     val copyableOverrides = remember(otherOverrides) { otherOverrides.filterNot { it.second.isEmpty } }
+    // Set when a copy is picked while this dialog already has in-progress content worth losing —
+    // gates the same kind of inline "are you sure" swap as showResetConfirm, so applyOverride()
+    // below never silently overwrites something the user already typed on any tab.
+    var pendingCopySource by remember { mutableStateOf<AppRpcOverride?>(null) }
 
-    // Mirrors collect() in reverse: overwrites every field from a picked override. Only touches
-    // this dialog's in-progress state — the caller doesn't see it until Save.
+    // Mirrors collect() in reverse: overwrites every field from a picked override, including
+    // fields on tabs other than the one currently visible — so any in-progress edit already made
+    // elsewhere in this dialog is silently replaced too, not just merged in. Only touches this
+    // dialog's in-progress state, nothing is persisted until Save (the copy menu below asks for
+    // confirmation first when there's already something to lose).
+    // NOTE: this, collect() below, and the rememberSaveable block above are three independent
+    // hand-written enumerations of every AppRpcOverride field — adding a field to that model
+    // means updating all three, or it silently fails to save/copy/restore for just that field.
     fun applyOverride(source: AppRpcOverride) {
         name = source.name.orEmpty()
         imageUrl = source.imageUrl.orEmpty()
@@ -230,8 +240,14 @@ fun AppOverrideDialog(
                                     DropdownMenuItem(
                                         text = { Text(otherAppName) },
                                         onClick = {
-                                            applyOverride(source)
                                             showCopyMenu = false
+                                            if (collect().isEmpty) {
+                                                applyOverride(source)
+                                            } else {
+                                                // Something's already typed on some tab — confirm
+                                                // before applyOverride() replaces all of it.
+                                                pendingCopySource = source
+                                            }
                                         },
                                     )
                                 }
@@ -259,6 +275,11 @@ fun AppOverrideDialog(
                         text = stringResource(R.string.app_override_reset_confirm_message, appName),
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                } else if (pendingCopySource != null) {
+                    Text(
+                        text = stringResource(R.string.app_override_copy_confirm_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 } else {
                     // Tab titles reuse the same section-title strings the fields used to be
                     // grouped under when this was one long scrolling form — same wording, just no
@@ -281,7 +302,7 @@ fun AppOverrideDialog(
                             smallImageUrl.isNotBlank() || smallText.isNotBlank(),
                         button1Text.isNotBlank() || button1Url.isNotBlank() ||
                             button2Text.isNotBlank() || button2Url.isNotBlank(),
-                        activityType != 0 || streamUrl.isNotBlank() || status != null ||
+                        activityType != 0 || streamUrl.isNotBlank() || !status.isNullOrBlank() ||
                             partyCurrent.isNotBlank() || partyMax.isNotBlank(),
                         false,
                     )
@@ -350,6 +371,12 @@ fun AppOverrideDialog(
                                     Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
                                     ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
                                     Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.app_override_image_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
                                 }
 
                                 2 -> {
@@ -398,6 +425,22 @@ fun AppOverrideDialog(
                                             modifier = Modifier.weight(1f),
                                         )
                                     }
+                                    // Preview (mirrors PresenceCardPreview's own render guard) is a
+                                    // separate tab now, not shown alongside these fields — surface
+                                    // the same validity rule here so an invalid pair doesn't just
+                                    // silently fail to render with no clue why.
+                                    val partyC = partyCurrent.toIntOrNull()
+                                    val partyM = partyMax.toIntOrNull()
+                                    if (partyCurrent.isNotBlank() && partyMax.isNotBlank() &&
+                                        !(partyC != null && partyM != null && partyC > 0 && partyM > 0 && partyC <= partyM)
+                                    ) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.app_override_party_invalid_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
 
                                 else -> {
@@ -421,6 +464,11 @@ fun AppOverrideDialog(
         confirmButton = {
             if (showResetConfirm) {
                 TextButton(onClick = onClear) { Text(stringResource(R.string.app_override_clear)) }
+            } else if (pendingCopySource != null) {
+                TextButton(onClick = {
+                    applyOverride(pendingCopySource!!)
+                    pendingCopySource = null
+                }) { Text(stringResource(R.string.app_override_copy_from)) }
             } else {
                 TextButton(onClick = { onSave(collect()) }) { Text(text = stringResource(R.string.save)) }
             }
@@ -428,6 +476,8 @@ fun AppOverrideDialog(
         dismissButton = {
             if (showResetConfirm) {
                 TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.cancel)) }
+            } else if (pendingCopySource != null) {
+                TextButton(onClick = { pendingCopySource = null }) { Text(stringResource(R.string.cancel)) }
             } else {
                 TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.cancel)) }
             }

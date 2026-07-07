@@ -54,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -103,6 +104,11 @@ fun AppsRPC(
     // AppOverrideDialog) since the dialog is already gone by the time reset fires onClear.
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // Read inside the Undo coroutine below instead of the plain `state` parameter — that
+    // coroutine is launched once at reset time and keeps running across recompositions, so a
+    // captured `state` would stay frozen at its launch-time value. rememberUpdatedState keeps
+    // `.value` current so Undo can tell whether the app was re-saved while its Snackbar was up.
+    val currentState = rememberUpdatedState(state)
 
     Scaffold(
         modifier = Modifier
@@ -274,7 +280,12 @@ fun AppsRPC(
                                     actionLabel = ctx.getString(R.string.app_override_reset_snackbar_undo),
                                     duration = SnackbarDuration.Short,
                                 )
-                                if (result == SnackbarResult.ActionPerformed) {
+                                // Only restore if nothing new was saved for pkg while the
+                                // Snackbar was up — otherwise Undo would silently clobber a
+                                // fresh save with this stale, already-cleared value.
+                                if (result == SnackbarResult.ActionPerformed &&
+                                    currentState.value.overrides[pkg] == null
+                                ) {
                                     onSetOverride(pkg, cleared)
                                 }
                             }

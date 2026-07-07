@@ -138,7 +138,8 @@
     <string name="app_override_title">ปรับแต่งสถานะ</string>
     <string name="app_override_name">ชื่อที่กำหนดเอง</string>
     <string name="app_override_image">ลิงก์รูปใหญ่</string>
-    <string name="app_override_hint">เว้นว่างไว้เพื่อใช้ชื่อ/ไอคอนจริงของแอพ ลิงก์รูปต้องเป็นลิงก์ตรงไปยังไฟล์รูป</string>
+    <string name="app_override_hint">เว้นว่างไว้เพื่อใช้ชื่อ/ไอคอนจริงของแอพ</string>
+    <string name="app_override_image_hint">ลิงก์รูปต้องเป็นลิงก์ตรงไปยังไฟล์รูป</string>
     <string name="app_override_clear">ล้างค่า</string>
     <string name="app_override_details">รายละเอียด (บรรทัด 2)</string>
     <string name="app_override_state">สถานะ (บรรทัด 3)</string>
@@ -166,8 +167,10 @@
     <string name="app_override_char_limit_warning">จะถูกตัดที่ 128 ตัวอักษร</string>
     <string name="app_override_section_preview">ตัวอย่าง</string>
     <string name="app_override_tab_status_party">สถานะ+ปาร์ตี้</string>
-    <string name="app_override_reset_confirm_message">ล้างค่าปรับแต่งทั้งหมดของ %1$s ใช่ไหม? ทำแล้วกู้คืนไม่ได้</string>
+    <string name="app_override_reset_confirm_message">ล้างค่าปรับแต่งทั้งหมดของ %1$s ใช่ไหม? เรียกคืนได้ทันทีหลังจากนี้</string>
+    <string name="app_override_party_invalid_hint">จะไม่แสดง: ปัจจุบันต้องมากกว่า 0 และไม่เกินสูงสุด</string>
     <string name="app_override_copy_from">คัดลอกการปรับแต่งจาก</string>
+    <string name="app_override_copy_confirm_message">แทนที่การแก้ไขที่ยังไม่บันทึกด้วยค่าปรับแต่งของแอพนี้ใช่ไหม?</string>
     <string name="app_override_reset_snackbar_message">ล้างค่าปรับแต่งของ %1$s แล้ว</string>
     <string name="app_override_reset_snackbar_undo">เรียกคืน</string>
     <string name="activity_type_playing">กำลังเล่น</string>
