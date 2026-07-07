@@ -282,9 +282,15 @@ open class DiscordWebSocketImpl(
         sessionId = null
         connected = false
         runBlocking {
-            websocket?.close()
+            // runCatching (same as scheduleReconnect() above) so a throw from an already-broken
+            // session can't skip the websocket = null below — isWebSocketConnected() reads that
+            // reference directly, and a caller checking it right after close() (e.g. App Detection
+            // deciding whether to update-in-place vs. rebuild after turning the elapsed-timer off)
+            // must see "not connected" even when the underlying close errors out.
+            runCatching { websocket?.close() }
             logger.e("Gateway","Connection to gateway closed")
         }
+        websocket = null
     }
 
     private fun resendLastPresence() {

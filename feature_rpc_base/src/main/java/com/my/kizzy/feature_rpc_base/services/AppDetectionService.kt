@@ -33,6 +33,7 @@ import com.my.kizzy.data.rpc.RpcButton
 import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.data.rpc.RpcImage
 import com.my.kizzy.data.rpc.Timestamps
+import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
 import com.my.kizzy.feature_rpc_base.forgetActiveService
@@ -73,6 +74,9 @@ class AppDetectionService : Service() {
 
     @Inject
     lateinit var rpcConnectionState: RpcConnectionState
+
+    @Inject
+    lateinit var logger: Logger
 
     // Separate from `scope` so it survives the detection loop's lifecycle; cancelled in onDestroy.
     private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -268,10 +272,18 @@ class AppDetectionService : Service() {
         val timerTurnedOff = previousOverride != null &&
             (previousOverride.showTimestamps ?: true) && !rpc.showTimestamps
         if (timerTurnedOff && kizzyRPC.isRpcRunning()) {
+            // TEMP DIAGNOSTIC (Tier 1.1 timer bug, round 3) — confirm closeRPC() actually
+            // flips isRpcRunning() to false before the branch check below runs. Remove
+            // once confirmed via the in-app Logs screen.
+            logger.d("AppDetectionService", "[DBG-TIMER] timerTurnedOff=true, closing RPC before rebuild")
             kizzyRPC.closeRPC()
+            logger.d("AppDetectionService", "[DBG-TIMER] after closeRPC isRpcRunning=${kizzyRPC.isRpcRunning()}")
         }
 
         if (kizzyRPC.isRpcRunning()) {
+            if (timerTurnedOff) {
+                logger.d("AppDetectionService", "[DBG-TIMER] BUG: still isRpcRunning=true after closeRPC, taking updateRPC (in-place) branch instead of rebuild")
+            }
             // A presence is already running for the previous app. Update it in place so
             // switching games immediately reflects the new one — otherwise the RPC stays
             // stuck on the app it first started with.
@@ -298,6 +310,9 @@ class AppDetectionService : Service() {
                 enableTimestamps = rpc.showTimestamps
             )
         } else {
+            if (timerTurnedOff) {
+                logger.d("AppDetectionService", "[DBG-TIMER] OK: isRpcRunning=false after closeRPC, taking build (full rebuild) branch")
+            }
             kizzyRPC.apply {
                 // Same instance is reused across app switches; clear leftover state (appended
                 // buttons, previous app's timestamps/images/details) before building fresh.
