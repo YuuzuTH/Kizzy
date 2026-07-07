@@ -163,6 +163,7 @@
     <string name="app_override_char_limit_warning">Will be cut off at 128 characters</string>
     <string name="app_override_section_preview">Preview</string>
     <string name="app_override_tab_status_party">Status &amp; Party</string>
+    <string name="app_override_reset_confirm_message">Clear all customization for %1$s? This can\'t be undone.</string>
     <string name="activity_type_playing">Playing</string>
     <string name="activity_type_streaming">Streaming</string>
     <string name="activity_type_listening">Listening</string>
