@@ -205,11 +205,14 @@ class AppDetectionService : Service() {
             // edits the current app's override while it's still in the foreground — otherwise
             // a name/timer/button/image change wouldn't show until the next app switch.
             val override = AppRpcOverrides.of(packageName)
-            if (packageName != runningPackage || override != lastAppliedOverride) {
-                // Only meaningful when it's the *same* app re-applying an in-place edit —
-                // an actual app switch has no "previous state" to diff the timer against.
-                val previousOverride = lastAppliedOverride.takeIf { packageName == runningPackage }
-                handleEnabledPackage(packageName, rpcButtons, previousOverride)
+            val isSameApp = packageName == runningPackage
+            if (!isSameApp || override != lastAppliedOverride) {
+                // lastAppliedOverride is null both when this is an actual app switch AND
+                // when it's the *first-ever* customization of the still-running app (no
+                // override existed to record yet) — isSameApp is the only reliable signal
+                // for "in-place edit with a real previous state to diff the timer against";
+                // handleEnabledPackage must not infer that from previousOverride == null.
+                handleEnabledPackage(packageName, rpcButtons, lastAppliedOverride, isSameApp)
                 runningPackage = packageName
                 lastAppliedOverride = override
             }
@@ -224,6 +227,7 @@ class AppDetectionService : Service() {
         packageName: String,
         rpcButtons: RpcButtons,
         previousOverride: AppRpcOverride?,
+        isSameApp: Boolean,
     ) {
         // Build the icon once and reuse it for the RPC image and the notification —
         // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
@@ -268,9 +272,12 @@ class AppDetectionService : Service() {
         // counter it already anchored for the current session even once the payload stops
         // carrying `timestamps`. Only this direction needs the reconnect: turning it back ON
         // just starts a fresh counter from a normal update, nothing stale to clear. Ordinary
-        // app switches (previousOverride null) keep updating in place exactly as before.
-        val timerTurnedOff = previousOverride != null &&
-            (previousOverride.showTimestamps ?: true) && !rpc.showTimestamps
+        // app switches (isSameApp false) keep updating in place exactly as before.
+        // Gate on isSameApp, not "previousOverride != null" — a same-app in-place edit can
+        // have previousOverride == null too (the very first customization of this app ever),
+        // and its effective showTimestamps default is still true, same as resolveFull() below.
+        val timerTurnedOff = isSameApp &&
+            (previousOverride?.showTimestamps ?: true) && !rpc.showTimestamps
         if (timerTurnedOff && kizzyRPC.isRpcRunning()) {
             // TEMP DIAGNOSTIC (Tier 1.1 timer bug, round 3) — confirm closeRPC() actually
             // flips isRpcRunning() to false before the branch check below runs. Remove
