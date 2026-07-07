@@ -69,6 +69,7 @@ import com.my.kizzy.ui.components.BackButton
 import com.my.kizzy.ui.components.SearchBar
 import com.my.kizzy.ui.components.SwitchBar
 import com.my.kizzy.ui.components.preference.PreferencesHint
+import java.io.File
 
 @SuppressLint("MutableCollectionMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +82,7 @@ fun AppsRPC(
     onSetOverride: (pkg: String, override: AppRpcOverride) -> Unit = { _, _ -> },
     onClearOverride: (pkg: String) -> Unit = { },
     onClearAllOverrides: () -> Unit = { },
+    onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit = { _, _ -> },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState(),
@@ -246,6 +248,7 @@ fun AppsRPC(
                         editingPkg = null
                     },
                     onDismissRequest = { editingPkg = null },
+                    onUploadImage = onUploadImage,
                 )
             }
         }

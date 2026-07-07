@@ -10,7 +10,7 @@
  *
  */
 
-package com.my.kizzy.feature_custom_rpc.components
+package com.my.kizzy.ui.components
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,7 +40,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
-import com.my.kizzy.ui.components.BrowseFilesButton
 import com.my.kizzy.resources.R
 
 @Composable

@@ -17,10 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -34,11 +36,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.my.kizzy.data.rpc.AppRpcOverride
+import com.my.kizzy.data.utils.uriToFile
 import com.my.kizzy.resources.R
+import java.io.File
 
 /**
  * Full per-app presence editor: custom name, details/state, large & small images with
@@ -47,6 +52,10 @@ import com.my.kizzy.resources.R
  *
  * The activity types offered map to Discord's verbs; note "Streaming" (1) only renders when a
  * valid Twitch/YouTube [AppRpcOverride.streamUrl] is set, which is why that field sits next to it.
+ *
+ * The large/small image fields also accept a picked-from-device image: [onUploadImage] does the
+ * actual upload (caller owns the network/use-case), this dialog only supplies the file and writes
+ * the returned asset id back into the field, same as [AppRpcOverride.imageUrl] would from a URL.
  */
 @Composable
 fun AppOverrideDialog(
@@ -55,6 +64,7 @@ fun AppOverrideDialog(
     onSave: (AppRpcOverride) -> Unit,
     onClear: () -> Unit,
     onDismissRequest: () -> Unit,
+    onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit = { _, _ -> },
 ) {
     var name by rememberSaveable { mutableStateOf(initial.name.orEmpty()) }
     var imageUrl by rememberSaveable { mutableStateOf(initial.imageUrl.orEmpty()) }
@@ -117,9 +127,9 @@ fun AppOverrideDialog(
 
                 Spacer(Modifier.height(8.dp))
                 Section(stringResource(R.string.app_override_section_images))
-                Field(imageUrl, { imageUrl = it }, R.string.app_override_image, KeyboardType.Uri)
+                ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
                 Field(largeText, { largeText = it }, R.string.app_override_large_text)
-                Field(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, KeyboardType.Uri)
+                ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
                 Field(smallText, { smallText = it }, R.string.app_override_small_text)
 
                 Spacer(Modifier.height(8.dp))
@@ -200,6 +210,47 @@ private fun Field(
         modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(8.dp))
+}
+
+/** Same as [Field], but with a gallery-icon trailing button that picks + uploads an image
+ *  from the device and writes the returned asset id back into [value] — same field the user
+ *  could otherwise paste a URL into. */
+@Composable
+private fun ImageField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    labelRes: Int,
+    onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit,
+) {
+    val context = LocalContext.current
+    var showPicker by remember { mutableStateOf(false) }
+    var showProgress by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(stringResource(labelRes)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        trailingIcon = {
+            IconButton(onClick = { showPicker = true }) {
+                Icon(Icons.Default.Image, contentDescription = stringResource(R.string.upload_image))
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    ImagePicker(
+        visible = showPicker,
+        onDismiss = { showPicker = false },
+        showProgress = showProgress,
+    ) { uri ->
+        showProgress = true
+        onUploadImage(context.uriToFile(uri)) { result ->
+            showProgress = false
+            showPicker = false
+            onValueChange(result)
+        }
+    }
 }
 
 @Composable

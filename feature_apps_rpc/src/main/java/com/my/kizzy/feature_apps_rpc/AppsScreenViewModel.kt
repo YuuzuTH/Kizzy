@@ -18,6 +18,7 @@ import androidx.lifecycle.viewModelScope
 import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.utils.getInstalledApps
+import com.my.kizzy.domain.use_case.upload_galleryImage.UploadGalleryImageUseCase
 import com.my.kizzy.preference.Prefs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -26,11 +27,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 class AppsScreenViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val uploadGalleryImageUseCase: UploadGalleryImageUseCase,
 ) : ViewModel() {
     private val _state: MutableStateFlow<AppsState> = MutableStateFlow(AppsState())
     val state = _state.asStateFlow()
@@ -78,6 +82,15 @@ class AppsScreenViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             AppRpcOverrides.clearAll()
             _state.update { it.copy(overrides = AppRpcOverrides.all()) }
+        }
+    }
+
+    /** Upload a device-picked image and return the asset id to store as an override image URL. */
+    fun uploadImage(file: File, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            uploadGalleryImageUseCase(file)?.let {
+                withContext(Dispatchers.Main) { onResult(it.drop(3)) }
+            }
         }
     }
 

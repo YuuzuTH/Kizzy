@@ -155,6 +155,7 @@ internal fun ComponentActivity.Kizzy(
                     onSetOverride = viewModel::setOverride,
                     onClearOverride = viewModel::clearOverride,
                     onClearAllOverrides = viewModel::clearAllOverrides,
+                    onUploadImage = viewModel::uploadImage,
                 )
             }
             animatedComposable(Routes.CUSTOM_RPC) {

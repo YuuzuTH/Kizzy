@@ -65,7 +65,7 @@ import com.my.kizzy.data.utils.uriToFile
 import com.my.kizzy.domain.model.user.User
 import com.my.kizzy.feature_custom_rpc.components.BottomSheet
 import com.my.kizzy.feature_custom_rpc.components.DateTimePickerDialog
-import com.my.kizzy.feature_custom_rpc.components.ImagePicker
+import com.my.kizzy.ui.components.ImagePicker
 import com.my.kizzy.feature_custom_rpc.components.sheet.DeleteConfigDialog
 import com.my.kizzy.feature_custom_rpc.components.sheet.LoadConfig
 import com.my.kizzy.feature_custom_rpc.components.sheet.PreviewDialog

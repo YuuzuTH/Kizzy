@@ -6,6 +6,7 @@
 
 package com.my.kizzy.data.rpc
 
+import com.my.kizzy.data.utils.toRpcImage
 import com.my.kizzy.preference.Prefs
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -61,8 +62,7 @@ object AppRpcOverrides {
     ): Pair<String, RpcImage> {
         val override = of(packageName)
         val name = override?.name?.takeIf { it.isNotBlank() } ?: defaultName
-        val image = override?.imageUrl?.takeIf { it.isNotBlank() }
-            ?.let { RpcImage.ExternalImage(it) } ?: fallbackImage
+        val image = override?.imageUrl?.toRpcImage() ?: fallbackImage
         return name to image
     }
 
@@ -79,7 +79,7 @@ object AppRpcOverrides {
     ): ResolvedAppRpc {
         val o = of(packageName)
         fun str(v: String?) = v?.takeIf { it.isNotBlank() }
-        fun img(v: String?) = str(v)?.let { RpcImage.ExternalImage(it) }
+        fun img(v: String?) = v?.toRpcImage()
         return ResolvedAppRpc(
             name = str(o?.name) ?: defaultName,
             largeImage = img(o?.imageUrl) ?: fallbackImage,
