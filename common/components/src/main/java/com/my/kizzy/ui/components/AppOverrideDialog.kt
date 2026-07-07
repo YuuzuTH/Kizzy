@@ -27,11 +27,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,6 +99,12 @@ import kotlinx.coroutines.launch
  * A reset icon next to the app name (only shown when [initial] already had customization) clears
  * the whole override in one action; tapping it swaps the dialog body into a lightweight inline
  * confirmation instead of opening a second dialog on top of this one.
+ *
+ * A copy icon next to it (only shown when [otherOverrides] isn't empty) opens a small dropdown of
+ * other apps that already have a customization, so the current one can be started from an existing
+ * one instead of from scratch — it only overwrites this dialog's in-progress fields, nothing is
+ * persisted until [onSave]. This is intentionally just a one-shot field copy, not a template/preset
+ * system (that's a separate, later feature).
  */
 @Composable
 fun AppOverrideDialog(
@@ -105,6 +114,10 @@ fun AppOverrideDialog(
     onClear: () -> Unit,
     onDismissRequest: () -> Unit,
     onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit = { _, _ -> },
+    // (app display name, its override) pairs to offer in the "copy from" menu. The caller is
+    // expected to have already excluded the app currently being edited and anything with an
+    // empty override; this composable defensively filters isEmpty again just in case.
+    otherOverrides: List<Pair<String, AppRpcOverride>> = emptyList(),
 ) {
     var name by rememberSaveable { mutableStateOf(initial.name.orEmpty()) }
     var imageUrl by rememberSaveable { mutableStateOf(initial.imageUrl.orEmpty()) }
@@ -128,6 +141,31 @@ fun AppOverrideDialog(
     // Gates an inline "are you sure" swap of the dialog body (see AlertDialog's `text` below)
     // instead of stacking a second AlertDialog on top of this one for the reset action.
     var showResetConfirm by rememberSaveable { mutableStateOf(false) }
+    // Transient menu-open state, same as ImageField's showPicker below — not rememberSaveable,
+    // a closed menu is a fine default to restore to.
+    var showCopyMenu by remember { mutableStateOf(false) }
+    val copyableOverrides = remember(otherOverrides) { otherOverrides.filterNot { it.second.isEmpty } }
+
+    // Mirrors collect() in reverse: overwrites every field from a picked override. Only touches
+    // this dialog's in-progress state — the caller doesn't see it until Save.
+    fun applyOverride(source: AppRpcOverride) {
+        name = source.name.orEmpty()
+        imageUrl = source.imageUrl.orEmpty()
+        details = source.details.orEmpty()
+        state = source.state.orEmpty()
+        largeText = source.largeText.orEmpty()
+        smallImageUrl = source.smallImageUrl.orEmpty()
+        smallText = source.smallText.orEmpty()
+        streamUrl = source.streamUrl.orEmpty()
+        button1Text = source.button1Text.orEmpty()
+        button1Url = source.button1Url.orEmpty()
+        button2Text = source.button2Text.orEmpty()
+        button2Url = source.button2Url.orEmpty()
+        activityType = source.activityType ?: 0
+        status = source.status
+        partyCurrent = source.partyCurrentSize?.toString().orEmpty()
+        partyMax = source.partyMaxSize?.toString().orEmpty()
+    }
 
     fun collect() = AppRpcOverride(
         name = name.trim().ifBlank { null },
@@ -164,6 +202,42 @@ fun AppOverrideDialog(
                         color = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.weight(1f),
                     )
+                    // Only offered when there's at least one other app to copy from. Disabled
+                    // (rather than removed) during the reset confirm step, same reasoning as the
+                    // reset icon below.
+                    if (copyableOverrides.isNotEmpty()) {
+                        Box {
+                            IconButton(
+                                onClick = { showCopyMenu = true },
+                                enabled = !showResetConfirm,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.ContentCopy,
+                                    contentDescription = stringResource(R.string.app_override_copy_from),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showCopyMenu,
+                                onDismissRequest = { showCopyMenu = false },
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.app_override_copy_from),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                )
+                                copyableOverrides.forEach { (otherAppName, source) ->
+                                    DropdownMenuItem(
+                                        text = { Text(otherAppName) },
+                                        onClick = {
+                                            applyOverride(source)
+                                            showCopyMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
                     // Only offered when there was already something to reset. Disabled (rather
                     // than removed) while showResetConfirm is up so a second tap can't re-arm it.
                     if (hasExisting) {

@@ -164,6 +164,9 @@
     <string name="app_override_section_preview">Preview</string>
     <string name="app_override_tab_status_party">Status &amp; Party</string>
     <string name="app_override_reset_confirm_message">Clear all customization for %1$s? This can\'t be undone.</string>
+    <string name="app_override_copy_from">Copy customization from</string>
+    <string name="app_override_reset_snackbar_message">Customization for %1$s was cleared.</string>
+    <string name="app_override_reset_snackbar_undo">Undo</string>
     <string name="activity_type_playing">Playing</string>
     <string name="activity_type_streaming">Streaming</string>
     <string name="activity_type_listening">Listening</string>

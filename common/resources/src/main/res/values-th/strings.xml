@@ -167,6 +167,9 @@
     <string name="app_override_section_preview">ตัวอย่าง</string>
     <string name="app_override_tab_status_party">สถานะ+ปาร์ตี้</string>
     <string name="app_override_reset_confirm_message">ล้างค่าปรับแต่งทั้งหมดของ %1$s ใช่ไหม? ทำแล้วกู้คืนไม่ได้</string>
+    <string name="app_override_copy_from">คัดลอกการปรับแต่งจาก</string>
+    <string name="app_override_reset_snackbar_message">ล้างค่าปรับแต่งของ %1$s แล้ว</string>
+    <string name="app_override_reset_snackbar_undo">เรียกคืน</string>
     <string name="activity_type_playing">กำลังเล่น</string>
     <string name="activity_type_streaming">กำลังสตรีม</string>
     <string name="activity_type_listening">กำลังฟัง</string>

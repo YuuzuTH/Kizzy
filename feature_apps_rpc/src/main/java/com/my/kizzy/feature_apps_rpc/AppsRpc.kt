@@ -41,6 +41,10 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -49,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +75,7 @@ import com.my.kizzy.ui.components.SearchBar
 import com.my.kizzy.ui.components.SwitchBar
 import com.my.kizzy.ui.components.preference.PreferencesHint
 import java.io.File
+import kotlinx.coroutines.launch
 
 @SuppressLint("MutableCollectionMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,11 +99,16 @@ fun AppsRPC(
     var isSearchBarVisible by remember { mutableStateOf(false) }
     var editingPkg by remember { mutableStateOf<String?>(null) }
     var showOnlyCustomized by remember { mutableStateOf(false) }
+    // Backs the reset-to-default undo Snackbar below — hosted here (not inside
+    // AppOverrideDialog) since the dialog is already gone by the time reset fires onClear.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LargeTopAppBar(
                 title = {
@@ -236,6 +247,13 @@ fun AppsRPC(
             editingPkg?.let { pkg ->
                 val override = state.overrides[pkg] ?: AppRpcOverride()
                 val appName = state.apps.firstOrNull { it.pkg == pkg }?.name ?: pkg
+                // Other apps' saved overrides, offered in the dialog's "copy from" menu — excludes
+                // this app itself; AppOverrideDialog also filters out empty ones defensively.
+                val otherOverrides = state.overrides
+                    .filterKeys { it != pkg }
+                    .mapNotNull { (otherPkg, otherOverride) ->
+                        state.apps.firstOrNull { it.pkg == otherPkg }?.name?.let { it to otherOverride }
+                    }
                 AppOverrideDialog(
                     appName = appName,
                     initial = override,
@@ -244,11 +262,27 @@ fun AppsRPC(
                         editingPkg = null
                     },
                     onClear = {
+                        // Snapshot the persisted override (not whatever's mid-edit in the dialog)
+                        // before clearing, so Undo restores exactly what reset just wiped.
+                        val cleared = state.overrides[pkg]
                         onClearOverride(pkg)
                         editingPkg = null
+                        if (cleared != null) {
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = ctx.getString(R.string.app_override_reset_snackbar_message, appName),
+                                    actionLabel = ctx.getString(R.string.app_override_reset_snackbar_undo),
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    onSetOverride(pkg, cleared)
+                                }
+                            }
+                        }
                     },
                     onDismissRequest = { editingPkg = null },
                     onUploadImage = onUploadImage,
+                    otherOverrides = otherOverrides,
                 )
             }
         }
