@@ -118,7 +118,6 @@
     <string name="logs">ログ</string>
     <string name="drawer_subtitle_help">ヘルプ</string>
     <string name="drawer_faq">よくある質問</string>
-    <string name="go_to_profile">プロフィールを見る</string>
     <string name="version">バージョン</string>
     <string name="try_again">再試行</string>
     <string name="request_for_notification_access">メディア情報を取得するには通知へのアクセス許可が必要です。</string>
@@ -191,7 +190,6 @@
     <string name="are_you_sure">よろしいですか？</string>
     <string name="yes">はい</string>
     <string name="user_profile_error">ユーザープロフィールを更新できませんでした：</string>
-    <string name="no_internet_user_profile">インターネットに接続されていません。しばらくしてから再度お試しください。</string>
     <string name="user_profile_rpc_name">KIZZY RICH PRESENCEを使用中</string>
     <string name="user_profile_bio">自己紹介</string>
     <string name="user_profile_special_button">特別ボタン</string>

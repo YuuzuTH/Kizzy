@@ -121,7 +121,6 @@
     <string name="logs">Logs</string>
     <string name="drawer_subtitle_help">HELP</string>
     <string name="drawer_faq">FAQ</string>
-    <string name="go_to_profile">Go to Profile</string>
     <string name="version">Version</string>
     <string name="try_again">Retry</string>
     <string name="request_for_notification_access">Notification Access is needed for app to extract media information.</string>
@@ -197,7 +196,6 @@
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">Yes</string>
     <string name="user_profile_error">Could not Update User Profile:</string>
-    <string name="no_internet_user_profile">No Internet connection. Try again later.</string>
     <string name="user_profile_rpc_name">USING KIZZY RICH PRESENCE</string>
     <string name="user_profile_bio">ABOUT ME</string>
     <string name="user_profile_special_button">Special Button</string>
