@@ -40,9 +40,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,6 +61,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.my.kizzy.data.rpc.AppRpcOverride
@@ -81,7 +82,7 @@ import kotlinx.coroutines.launch
  * an edit in progress, it only changes which fields are currently visible. Each tab owns its own
  * scroll state.
  *
- * The [TabRow] and the [HorizontalPager] are kept in sync two ways: tapping a tab animates the
+ * The [ScrollableTabRow] and the [HorizontalPager] are kept in sync two ways: tapping a tab animates the
  * pager to that page, and [snapshotFlow]-ing the pager's settled page back into `selectedTab`
  * keeps the tab indicator following a swipe. `selectedTab` is still the single source of truth
  * that survives rotation/process death (it seeds the pager's initial page), the pager itself
@@ -322,7 +323,19 @@ fun AppOverrideDialog(
                         }
                     }
 
-                    TabRow(selectedTabIndex = selectedTab) {
+                    // ScrollableTabRow instead of the fixed-width TabRow: a plain TabRow splits
+                    // the dialog's width evenly across all 5 tabs, and "Status & Party" (and its
+                    // TH/JA equivalents, both longer than the English label) doesn't fit in a
+                    // fifth of that — it clipped mid-glyph with no ellipsis on real devices.
+                    // ScrollableTabRow sizes each tab to its own label instead and lets the row
+                    // itself scroll horizontally, so every language gets its full word; maxLines
+                    // + ellipsis stay on as a second line of defense for whatever locale ends up
+                    // with the longest label on the narrowest screen.
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedTab,
+                        edgePadding = 0.dp,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         tabTitles.forEachIndexed { index, titleRes ->
                             Tab(
                                 selected = selectedTab == index,
@@ -336,7 +349,11 @@ fun AppOverrideDialog(
                                             Badge(modifier = Modifier.size(6.dp))
                                         }
                                     }) {
-                                        Text(stringResource(titleRes), maxLines = 1)
+                                        Text(
+                                            stringResource(titleRes),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
                                     }
                                 },
                             )

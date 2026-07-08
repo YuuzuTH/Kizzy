@@ -14,6 +14,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.my.kizzy.domain.model.update.UpdateDownloadState
 import com.my.kizzy.domain.repository.AppUpdater
+import com.my.kizzy.resources.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
@@ -46,7 +47,10 @@ class AppUpdaterImpl @Inject constructor(
             val dir = File(context.cacheDir, "updates").apply {
                 if (!exists()) mkdirs() else listFiles()?.forEach { it.delete() }
             }
-            val apk = File(dir, "kizzy-${versionName.ifBlank { "update" }}.apk")
+            // Name the file after the app itself instead of a generic "kizzy-..." — if a user
+            // ever digs the file out of app-private cache (some file managers can on older
+            // Android versions), it should read as this app, not a leftover fork name.
+            val apk = File(dir, "${sanitizedAppLabel()}-${versionName.ifBlank { "update" }}.apk")
 
             // The shared HttpClient has a 30s request timeout — disable it for the
             // (potentially tens of MB) APK stream, otherwise the download is aborted.
@@ -114,7 +118,19 @@ class AppUpdaterImpl @Inject constructor(
         }
     }
 
+    // The app's display name ("D_RPC Yuzu夕") with anything unsafe for a filename collapsed to
+    // underscores — spaces and the handful of reserved characters Android/Windows/etc. file
+    // systems choke on. Unicode letters (夕) are left as-is; they're valid on every filesystem
+    // this app runs on. Reads R.string.app_name the same way the rest of the app does (see
+    // ConnectionStatusNotifier, Settings, StartUp) rather than a PackageManager round-trip, so
+    // it stays in sync automatically if the app is ever rebranded again.
+    private fun sanitizedAppLabel(): String {
+        val label = context.getString(R.string.app_name)
+        return label.replace(UNSAFE_FILENAME_CHARS, "_").trim('_').ifBlank { "update" }
+    }
+
     private companion object {
         const val DEFAULT_BUFFER_BYTES = 8 * 1024
+        val UNSAFE_FILENAME_CHARS = Regex("[\\s/\\\\:*?\"<>|]+")
     }
 }
