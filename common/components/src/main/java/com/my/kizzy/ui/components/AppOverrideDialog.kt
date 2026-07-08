@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -71,8 +72,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Full per-app presence editor: custom name, details/state, large & small images with
- * tooltips, activity type, stream URL, two buttons, status and party size. Purely
- * presentational — the caller persists the returned [AppRpcOverride]. Clearing removes it.
+ * tooltips, activity type, stream URL, two buttons, the elapsed-timer toggle, status and party
+ * size. Purely presentational — the caller persists the returned [AppRpcOverride]. Clearing
+ * removes it.
  *
  * All fields are hoisted to this top level with [rememberSaveable] and the tab body below is
  * just a `when` over the current pager page — so switching tabs (by tap or swipe) never loses
@@ -132,6 +134,7 @@ fun AppOverrideDialog(
     var button2Text by rememberSaveable { mutableStateOf(initial.button2Text.orEmpty()) }
     var button2Url by rememberSaveable { mutableStateOf(initial.button2Url.orEmpty()) }
     var activityType by rememberSaveable { mutableStateOf(initial.activityType ?: 0) }
+    var showTimestamps by rememberSaveable { mutableStateOf(initial.showTimestamps ?: true) }
     var status by rememberSaveable { mutableStateOf(initial.status) }
     var partyCurrent by rememberSaveable { mutableStateOf(initial.partyCurrentSize?.toString().orEmpty()) }
     var partyMax by rememberSaveable { mutableStateOf(initial.partyMaxSize?.toString().orEmpty()) }
@@ -172,6 +175,7 @@ fun AppOverrideDialog(
         button2Text = source.button2Text.orEmpty()
         button2Url = source.button2Url.orEmpty()
         activityType = source.activityType ?: 0
+        showTimestamps = source.showTimestamps ?: true
         status = source.status
         partyCurrent = source.partyCurrentSize?.toString().orEmpty()
         partyMax = source.partyMaxSize?.toString().orEmpty()
@@ -191,6 +195,7 @@ fun AppOverrideDialog(
         button1Url = button1Url.trim().ifBlank { null },
         button2Text = button2Text.trim().ifBlank { null },
         button2Url = button2Url.trim().ifBlank { null },
+        showTimestamps = showTimestamps,
         status = status,
         partyCurrentSize = partyCurrent.toIntOrNull(),
         partyMaxSize = partyMax.toIntOrNull(),
@@ -302,8 +307,8 @@ fun AppOverrideDialog(
                             smallImageUrl.isNotBlank() || smallText.isNotBlank(),
                         button1Text.isNotBlank() || button1Url.isNotBlank() ||
                             button2Text.isNotBlank() || button2Url.isNotBlank(),
-                        activityType != 0 || streamUrl.isNotBlank() || !status.isNullOrBlank() ||
-                            partyCurrent.isNotBlank() || partyMax.isNotBlank(),
+                        activityType != 0 || streamUrl.isNotBlank() || !showTimestamps ||
+                            !status.isNullOrBlank() || partyCurrent.isNotBlank() || partyMax.isNotBlank(),
                         false,
                     )
 
@@ -396,6 +401,33 @@ fun AppOverrideDialog(
                                     ActivityTypeRow(selected = activityType, onSelect = { activityType = it })
                                     if (activityType == 1) {
                                         Field(streamUrl, { streamUrl = it }, R.string.app_override_stream_url, KeyboardType.Uri)
+                                    }
+
+                                    // Discord doesn't render an elapsed timer for the Streaming type
+                                    // (it shows "LIVE" instead), so the toggle is meaningless there —
+                                    // hide it to avoid confusion, same as before this tab existed.
+                                    if (activityType != 1) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.app_override_show_timestamps),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                            )
+                                            Switch(checked = showTimestamps, onCheckedChange = { showTimestamps = it })
+                                        }
+                                        // Sets expectations up front: this has been genuinely tricky to
+                                        // guarantee on Discord's side (client-cached elapsed counters),
+                                        // see the help dialog for the full story — better to say so here
+                                        // than have it look broken with no explanation.
+                                        Text(
+                                            text = stringResource(R.string.app_override_timer_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                        )
                                     }
 
                                     Spacer(Modifier.height(8.dp))

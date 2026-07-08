@@ -149,6 +149,8 @@
     <string name="app_override_button1_url">Button 1 URL</string>
     <string name="app_override_button2">Button 2 label</string>
     <string name="app_override_button2_url">Button 2 URL</string>
+    <string name="app_override_show_timestamps">Show elapsed time</string>
+    <string name="app_override_timer_hint">Discord can take a moment (or a restart of Discord) to stop showing the elapsed timer after you turn this off — that\'s a known quirk on Discord\'s end, not a sign it didn\'t save.</string>
     <string name="app_override_section_text">Text</string>
     <string name="app_override_section_images">Images</string>
     <string name="app_override_section_buttons">Buttons</string>
@@ -181,6 +183,16 @@
     <string name="detection_fast">Fast (every 2s)</string>
     <string name="detection_normal">Normal (every 5s)</string>
     <string name="detection_battery">Battery saver (every 10s)</string>
+    <string name="got_it">Got it</string>
+    <string name="app_detection_help_title">About App Detection</string>
+    <string name="app_detection_help_intro_title">What is this?</string>
+    <string name="app_detection_help_intro_body">App Detection shows what app or game you\'re using right now as your Discord Rich Presence. Turn it on above, then enable the apps you want it to react to — it needs Usage Access permission to see what\'s in the foreground.</string>
+    <string name="app_detection_help_tabs_title">The pencil icon on each app</string>
+    <string name="app_detection_help_tabs_body">Tap it to customize how that one app appears: Text (name/details/state), Images (large/small image + tooltips), Buttons (up to two links), and Status &amp; Party (activity type, the elapsed-timer toggle, online status, party size). Preview shows a live mock of the presence card as you type. Leave anything blank to fall back to the app\'s real name and icon.</string>
+    <string name="app_detection_help_shortcuts_title">Copy, reset, filter</string>
+    <string name="app_detection_help_shortcuts_body">The copy icon next to an app\'s name lets you start from another app\'s customization instead of from scratch. The circular arrow resets that app back to default (you can undo right after). Once you have customized apps, a chip above the list lets you filter down to just those.</string>
+    <string name="app_detection_help_timer_title">About the elapsed-timer toggle</string>
+    <string name="app_detection_help_timer_body">Turning off "Show elapsed time" removes the running clock from that app\'s presence. This depends on how Discord\'s own client renders the update, so it may take a few seconds — or a Discord restart — to disappear on some devices.</string>
     <string name="compact_mode">Compact Mode</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">Yes</string>

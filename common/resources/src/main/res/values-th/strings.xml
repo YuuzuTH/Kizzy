@@ -152,6 +152,8 @@
     <string name="app_override_button1_url">ลิงก์ปุ่มที่ 1</string>
     <string name="app_override_button2">ป้ายปุ่มที่ 2</string>
     <string name="app_override_button2_url">ลิงก์ปุ่มที่ 2</string>
+    <string name="app_override_show_timestamps">แสดงเวลาที่ผ่านไป</string>
+    <string name="app_override_timer_hint">หลังปิดตัวนี้ Discord อาจใช้เวลาสักครู่ (หรือต้องปิดเปิด Discord ใหม่) กว่าตัวจับเวลาจะหายไปจริง — เป็นพฤติกรรมที่รู้กันของฝั่ง Discord เอง ไม่ใช่ว่าบันทึกไม่สำเร็จ</string>
     <string name="app_override_section_text">ข้อความ</string>
     <string name="app_override_section_images">รูปภาพ</string>
     <string name="app_override_section_buttons">ปุ่ม</string>
@@ -184,6 +186,16 @@
     <string name="detection_fast">เร็ว (ทุก 2 วิ)</string>
     <string name="detection_normal">ปกติ (ทุก 5 วิ)</string>
     <string name="detection_battery">ประหยัดแบต (ทุก 10 วิ)</string>
+    <string name="got_it">เข้าใจแล้ว</string>
+    <string name="app_detection_help_title">เกี่ยวกับ App Detection</string>
+    <string name="app_detection_help_intro_title">นี่คืออะไร?</string>
+    <string name="app_detection_help_intro_body">App Detection จะแสดงแอพ/เกมที่คุณกำลังใช้อยู่ตอนนี้เป็น Rich Presence บน Discord — เปิดสวิตช์ด้านบนก่อน แล้วเปิดใช้เฉพาะแอพที่อยากให้ตรวจจับ ต้องได้รับสิทธิ์ Usage Access เพื่อดูว่าแอพไหนอยู่หน้าจอตอนนั้น</string>
+    <string name="app_detection_help_tabs_title">ไอคอนดินสอบนแต่ละแอพ</string>
+    <string name="app_detection_help_tabs_body">แตะเพื่อปรับแต่งวิธีแสดงผลของแอพนั้นๆ: ข้อความ (ชื่อ/รายละเอียด/สถานะ), รูปภาพ (รูปใหญ่/เล็ก + คำโปรย), ปุ่ม (ได้สูงสุด 2 ปุ่ม) และสถานะ+ปาร์ตี้ (ประเภทกิจกรรม, สวิตช์เวลาที่ผ่านไป, สถานะออนไลน์, จำนวนปาร์ตี้) — ดูตัวอย่างจะโชว์ตัวอย่างการ์ด presence สดตามที่พิมพ์ เว้นช่องไหนว่างไว้ = ใช้ชื่อ/ไอคอนจริงของแอพแทน</string>
+    <string name="app_detection_help_shortcuts_title">คัดลอก, รีเซ็ต, กรอง</string>
+    <string name="app_detection_help_shortcuts_body">ไอคอนคัดลอกข้างชื่อแอพช่วยเริ่มจากค่าปรับแต่งของแอพอื่นแทนที่จะพิมพ์ใหม่ทั้งหมด · ไอคอนลูกศรวงกลมรีเซ็ตแอพนั้นกลับเป็นค่าเริ่มต้น (เรียกคืนได้ทันทีหลังจากนั้น) · พอมีแอพที่ปรับแต่งแล้วจะมีชิปด้านบนรายการให้กรองดูเฉพาะแอพที่ปรับแต่งไว้</string>
+    <string name="app_detection_help_timer_title">เรื่องสวิตช์เวลาที่ผ่านไป</string>
+    <string name="app_detection_help_timer_body">การปิด "แสดงเวลาที่ผ่านไป" จะเอาตัวจับเวลาที่กำลังนับออกจาก presence ของแอพนั้น — เพราะขึ้นอยู่กับวิธีที่ตัว Discord client แสดงผล อาจต้องรอสักครู่ หรือปิดเปิด Discord ใหม่ ถึงจะหายไปจริงในบางเครื่อง</string>
     <string name="compact_mode">โหมดกะทัดรัด</string>
     <string name="are_you_sure">ยืนยันหรือไม่?</string>
     <string name="yes">ใช่</string>

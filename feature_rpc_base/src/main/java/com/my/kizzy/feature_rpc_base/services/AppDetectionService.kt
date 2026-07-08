@@ -25,6 +25,7 @@ import android.os.IBinder
 import android.util.Log
 import com.blankj.utilcode.util.AppUtils
 import com.my.kizzy.data.get_current_data.app.ForegroundAppDetector
+import com.my.kizzy.data.remote.LogWebhookReporter
 import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.data.rpc.AppRpcOverrides
 import com.my.kizzy.data.rpc.CommonRpc
@@ -199,14 +200,26 @@ class AppDetectionService : Service() {
         if (packageName in enabledPackages) {
             // Re-apply not only when the foreground app changes, but also when the user
             // edits the current app's override while it's still in the foreground — otherwise
-            // a name/button/image change wouldn't show until the next app switch.
+            // a name/timer/button/image change wouldn't show until the next app switch.
             val override = AppRpcOverrides.of(packageName)
-            if (packageName != runningPackage || override != lastAppliedOverride) {
-                handleEnabledPackage(packageName, rpcButtons)
+            val isSameApp = packageName == runningPackage
+            if (!isSameApp || override != lastAppliedOverride) {
+                LogWebhookReporter.report(
+                    "event",
+                    "event=app_detection_apply pkg=$packageName mode=${if (isSameApp) "reapply" else "switch"} " +
+                        "prev=${runningPackage.ifBlank { "-" }}"
+                )
+                // lastAppliedOverride is null both when this is an actual app switch AND
+                // when it's the *first-ever* customization of the still-running app (no
+                // override existed to record yet) — isSameApp is the only reliable signal
+                // for "in-place edit with a real previous state to diff the timer against";
+                // handleEnabledPackage must not infer that from previousOverride == null.
+                handleEnabledPackage(packageName, rpcButtons, lastAppliedOverride, isSameApp)
                 runningPackage = packageName
                 lastAppliedOverride = override
             }
         } else if (packageName != runningPackage) {
+            LogWebhookReporter.report("event", "event=app_detection_disable pkg=$packageName prev=${runningPackage.ifBlank { "-" }}")
             handleDisabledPackage()
             runningPackage = ""
             lastAppliedOverride = null
@@ -216,14 +229,17 @@ class AppDetectionService : Service() {
     private suspend fun handleEnabledPackage(
         packageName: String,
         rpcButtons: RpcButtons,
+        previousOverride: AppRpcOverride?,
+        isSameApp: Boolean,
     ) {
         // Build the icon once and reuse it for the RPC image and the notification —
         // its constructor reads Prefs[SAVED_IMAGES] and parses JSON, so constructing
         // it several times per switch repeats that work for nothing.
         val icon = RpcImage.ApplicationIcon(packageName, this@AppDetectionService)
-        // Full per-app override: name, image, details/state, activity type, extra image
-        // and buttons merged with the app's real name/icon defaults. The notification
-        // keeps the real app icon; only the Discord presence reflects the override.
+        // Full per-app override: name, image, details/state, activity type, extra image,
+        // buttons, streaming url and timestamp toggle all merged with the app's real
+        // name/icon defaults. The notification keeps the real app icon; only the Discord
+        // presence reflects the override.
         val rpc = AppRpcOverrides.resolveFull(
             packageName,
             defaultName = AppUtils.getAppName(packageName),
@@ -254,6 +270,26 @@ class AppDetectionService : Service() {
 
         val startTime = System.currentTimeMillis()
 
+        // Turning the timer OFF for the *same still-running* app needs a brand new gateway
+        // session, not an in-place update — Discord's client keeps rendering the elapsed
+        // counter it already anchored for the current session even once the payload stops
+        // carrying `timestamps`. Only this direction needs the reconnect: turning it back ON
+        // just starts a fresh counter from a normal update, nothing stale to clear. Ordinary
+        // app switches (isSameApp false) keep updating in place exactly as before.
+        // Gate on isSameApp, not "previousOverride != null" — a same-app in-place edit can
+        // have previousOverride == null too (the very first customization of this app ever),
+        // and its effective showTimestamps default is still true, same as resolveFull() above.
+        val timerTurnedOff = isSameApp &&
+            (previousOverride?.showTimestamps ?: true) && !rpc.showTimestamps
+        if (timerTurnedOff && kizzyRPC.isRpcRunning()) {
+            LogWebhookReporter.report("event", "event=timer_off_reconnect pkg=$packageName beforeRunning=true")
+            kizzyRPC.closeRPC()
+            LogWebhookReporter.report(
+                "event",
+                "event=timer_off_reconnect pkg=$packageName afterCloseRunning=${kizzyRPC.isRpcRunning()}"
+            )
+        }
+
         if (kizzyRPC.isRpcRunning()) {
             // A presence is already running for the previous app. Update it in place so
             // switching games immediately reflects the new one — otherwise the RPC stays
@@ -268,7 +304,7 @@ class AppDetectionService : Service() {
                     smallImage = rpc.smallImage,
                     largeText = rpc.largeText,
                     smallText = rpc.smallText,
-                    time = Timestamps(start = startTime),
+                    time = Timestamps(start = startTime).takeIf { rpc.showTimestamps },
                     packageName = packageName,
                     // Always explicit (empty = no buttons) so switching to an app without
                     // buttons clears the previous app's instead of inheriting them.
@@ -277,7 +313,8 @@ class AppDetectionService : Service() {
                     partyCurrentSize = rpc.partyCurrentSize,
                     partyMaxSize = rpc.partyMaxSize,
                     status = rpc.status
-                )
+                ),
+                enableTimestamps = rpc.showTimestamps
             )
         } else {
             kizzyRPC.apply {
@@ -288,7 +325,7 @@ class AppDetectionService : Service() {
                 setType(rpc.activityType)
                 setDetails(rpc.details)
                 setState(rpc.state)
-                setStartTimestamps(startTime)
+                if (rpc.showTimestamps) setStartTimestamps(startTime)
                 setStatus(rpc.status)
                 setPartySize(rpc.partyCurrentSize, rpc.partyMaxSize)
                 setLargeImage(rpc.largeImage, rpc.largeText)

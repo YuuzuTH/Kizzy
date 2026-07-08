@@ -32,6 +32,11 @@ import kotlinx.serialization.Serializable
  * @property button1Url    URL the first button opens.
  * @property button2Text   Label of the second presence button.
  * @property button2Url    URL the second button opens.
+ * @property showTimestamps Whether to show the "elapsed" timer. null ⇒ inherit the mode default
+ *                          (App Detection shows it). false ⇒ force it off for this app. Re-added
+ *                          2026-07-08 with automatic event logging (see AppDetectionService) after
+ *                          three earlier attempts (v6.6.1.000/v6.7.1.000/v6.7.2.000) fixed real bugs
+ *                          but couldn't be confirmed fixed on-device without real diagnostic data.
  * @property status         Profile status while this app is foreground: "online"/"idle"/"dnd".
  *                          null ⇒ inherit the global default (Settings > custom status).
  * @property partyCurrentSize Current party size shown next to the presence. null (with
@@ -53,14 +58,15 @@ data class AppRpcOverride(
     val button1Url: String? = null,
     val button2Text: String? = null,
     val button2Url: String? = null,
+    val showTimestamps: Boolean? = null,
     val status: String? = null,
     val partyCurrentSize: Int? = null,
     val partyMaxSize: Int? = null,
 ) {
     /**
      * True when the override carries no meaningful customization, so it can be dropped from
-     * storage instead of persisting an all-default entry. [activityType] only counts as
-     * customization when it differs from the App-Detection default (Playing).
+     * storage instead of persisting an all-default entry. [activityType]/[showTimestamps] only
+     * count as customization when they differ from the App-Detection defaults (Playing + timer on).
      */
     val isEmpty: Boolean
         get() = name.isNullOrBlank() &&
@@ -76,6 +82,7 @@ data class AppRpcOverride(
             button2Text.isNullOrBlank() &&
             button2Url.isNullOrBlank() &&
             (activityType == null || activityType == 0) &&
+            (showTimestamps == null || showTimestamps) &&
             status.isNullOrBlank() &&
             partyCurrentSize == null &&
             partyMaxSize == null

@@ -80,14 +80,21 @@ object LogWebhookReporter {
             " (${AppUtils.getAppVersionCode()})"
     }
 
-    /** Fire-and-forget: never throws, no-ops if no webhook is configured for this build. */
+    /**
+     * Fire-and-forget: never throws on the caller's thread, no-ops if no webhook is
+     * configured for this build. Deliberately does *nothing* synchronously beyond the
+     * blank-URL check below — [deviceHeader]/[sanitize] and everything else run inside the
+     * launched coroutine's try/catch too, not just the network call. Several callers (e.g.
+     * [kizzy.gateway.DiscordWebSocketImpl]'s connect/close) sit directly in front of real
+     * state transitions; a synchronous throw here must never be able to abort one of those.
+     */
     fun report(kind: String, text: String) {
         val url = BuildConfig.LOG_WEBHOOK_URL
         if (url.isBlank()) return
-        val header = deviceHeader(kind)
-        val body = sanitize(text)
         scope.launch {
             try {
+                val header = deviceHeader(kind)
+                val body = sanitize(text)
                 client.post(url) {
                     setBody(
                         MultiPartFormDataContent(

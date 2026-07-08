@@ -32,7 +32,14 @@ open class DiscordWebSocketImpl(
     private val onAuthenticationFailed: () -> Unit = {},
     // Invoked on every coarse connection-state change so the host can surface a
     // "reconnecting…" status instead of the presence appearing frozen.
-    private val onConnectionStateChanged: (ConnectionState) -> Unit = {}
+    private val onConnectionStateChanged: (ConnectionState) -> Unit = {},
+    // Invoked at real gateway-session transitions (connect requested, session ready/resumed,
+    // deliberate close, reconnect scheduled, fatal close) so the host can forward a compact,
+    // structured trail to remote diagnostics — never per-heartbeat, only on state changes.
+    // This module can't depend on the `data` module's LogWebhookReporter directly (that would
+    // be a circular Gradle dependency: data already depends on gateway), so the host wires this
+    // callback instead — same pattern as [onConnectionStateChanged] above.
+    private val onGatewayEvent: (String) -> Unit = {}
 ) : DiscordWebSocket {
     private val gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json"
     private var websocket: DefaultClientWebSocketSession? = null
@@ -63,6 +70,7 @@ open class DiscordWebSocketImpl(
         // so two connect loops can never run at once.
         deliberateClose = false
         val epoch = ++connectEpoch
+        onGatewayEvent("gateway_connect epoch=$epoch resuming=${resumeGatewayUrl != null}")
         launch {
             try {
                 logger.i("Gateway","Connect called")
@@ -99,12 +107,14 @@ open class DiscordWebSocketImpl(
         when {
             deliberateClose || epoch != connectEpoch -> {}
             code == 4000 -> {
+                onGatewayEvent("gateway_resume_close code=4000")
                 delay(200.milliseconds)
                 connect()
             }
             // 4004 = auth failed, 4010..4014 = fatal (invalid intents etc.) — retrying is pointless
             code == 4004 || (code != null && code in 4010..4014) -> {
                 logger.e("Gateway","Fatal close code $code — not reconnecting")
+                onGatewayEvent("gateway_fatal_close code=$code")
                 // 4004 = the account token is invalid/expired. Signal the host so it can
                 // clear the token and surface a re-login prompt (otherwise the service keeps
                 // "running" while Discord silently ignores every presence update).
@@ -129,6 +139,7 @@ open class DiscordWebSocketImpl(
             sessionId = null
         }
         logger.w("Gateway","Connection lost — reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
+        onGatewayEvent("gateway_reconnect_scheduled attempt=$reconnectAttempts delayMs=$delayMs freshIdentify=${reconnectAttempts >= 3}")
         delay(delayMs)
         if (!deliberateClose && epoch == connectEpoch) connect()
     }
@@ -162,6 +173,7 @@ open class DiscordWebSocketImpl(
                 // Only a confirmed session counts as a successful reconnect
                 reconnectAttempts = 0
                 onConnectionStateChanged(ConnectionState.CONNECTED)
+                onGatewayEvent("gateway_ready session_id=$sessionId")
                 resendLastPresence()
                 return
             }
@@ -170,6 +182,7 @@ open class DiscordWebSocketImpl(
                 connected = true
                 reconnectAttempts = 0
                 onConnectionStateChanged(ConnectionState.CONNECTED)
+                onGatewayEvent("gateway_resumed session_id=$sessionId")
                 resendLastPresence()
             }
             else -> {}
@@ -271,6 +284,7 @@ open class DiscordWebSocketImpl(
     }
 
     override fun close() {
+        onGatewayEvent("gateway_close deliberate=true wasConnected=$connected")
         deliberateClose = true
         connectEpoch++
         reconnectAttempts = 0

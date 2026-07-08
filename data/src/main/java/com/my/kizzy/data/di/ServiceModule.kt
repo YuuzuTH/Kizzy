@@ -12,6 +12,7 @@
 
 package com.my.kizzy.data.di
 
+import com.my.kizzy.data.remote.LogWebhookReporter
 import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.domain.interfaces.Logger
@@ -43,7 +44,11 @@ object ServiceModule {
                 // "not logged in" state and the user knows to log in again.
                 Prefs.remove(Prefs.TOKEN)
             },
-            onConnectionStateChanged = { connectionState.update(it) }
+            onConnectionStateChanged = { connectionState.update(it) },
+            // Forward gateway session transitions (connect/ready/resumed/close/reconnect) to the
+            // remote debug log — sparse (only real state changes, see DiscordWebSocketImpl's call
+            // sites), so this is safe to leave on for every user, not just while chasing a bug.
+            onGatewayEvent = { event -> LogWebhookReporter.report("event", event) }
         )
 
     @Provides

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.AppsOutage
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,6 +70,7 @@ import com.my.kizzy.feature_rpc_base.services.ExperimentalRpc
 import com.my.kizzy.feature_rpc_base.services.MediaRpcService
 import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.resources.R
+import com.my.kizzy.ui.components.AppDetectionHelpDialog
 import com.my.kizzy.ui.components.AppOverrideDialog
 import com.my.kizzy.ui.components.AppsItem
 import com.my.kizzy.ui.components.BackButton
@@ -100,6 +102,7 @@ fun AppsRPC(
     var isSearchBarVisible by remember { mutableStateOf(false) }
     var editingPkg by remember { mutableStateOf<String?>(null) }
     var showOnlyCustomized by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
     // Backs the reset-to-default undo Snackbar below — hosted here (not inside
     // AppOverrideDialog) since the dialog is already gone by the time reset fires onClear.
     val snackbarHostState = remember { SnackbarHostState() }
@@ -139,6 +142,12 @@ fun AppsRPC(
                             )
                         }
                     } else {
+                        IconButton(onClick = { showHelp = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                                contentDescription = stringResource(id = R.string.app_detection_help_title),
+                            )
+                        }
                         IconButton(onClick = { isSearchBarVisible = !isSearchBarVisible }) {
                             Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                         }
@@ -248,6 +257,10 @@ fun AppsRPC(
                         }
                     }
                 }
+            }
+
+            if (showHelp) {
+                AppDetectionHelpDialog(onDismissRequest = { showHelp = false })
             }
 
             editingPkg?.let { pkg ->
