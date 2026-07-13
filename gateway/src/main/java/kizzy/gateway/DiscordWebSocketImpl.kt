@@ -49,6 +49,14 @@ open class DiscordWebSocketImpl(
     private var resumeGatewayUrl: String? = null
     private var heartbeatJob: Job? = null
     private var connected = false
+    // True from the moment a connect attempt starts until it terminally resolves (deliberate
+    // close or a fatal/unretryable close) — covers the whole retry backoff chain, not just the
+    // initial handshake. Guards connect() against a caller (KizzyRPC.connectToWebSocket, called
+    // on every fresh build()) invoking it again while a session is already live or a reconnect
+    // is already pending: without this, overlapping connect() calls each bump connectEpoch and
+    // open their own websocket, racing each other and producing the reconnect storm seen in
+    // 2026-07-13 field logs (epoch jumping 3→4→5 within ~3s, presence flickering/going stale).
+    private var connecting = false
     private var deliberateClose = false
     private var reconnectAttempts = 0
     private var connectEpoch = 0
@@ -65,6 +73,15 @@ open class DiscordWebSocketImpl(
         get() = SupervisorJob() + Dispatchers.Default
 
     override suspend fun connect() {
+        // Already connected, or a connect/retry chain is already in flight — a redundant call
+        // here (e.g. KizzyRPC.connectToWebSocket() firing again from a second build() before
+        // isRpcRunning() catches up) must no-op instead of racing the existing session/backoff.
+        if (connected || connecting) return
+        connectInternal()
+    }
+
+    private suspend fun connectInternal() {
+        connecting = true
         // A deliberate close is only sticky until the next explicit connect;
         // the epoch invalidates any reconnect attempt still sleeping in backoff
         // so two connect loops can never run at once.
@@ -109,7 +126,7 @@ open class DiscordWebSocketImpl(
             code == 4000 -> {
                 onGatewayEvent("gateway_resume_close code=4000")
                 delay(200.milliseconds)
-                connect()
+                connectInternal()
             }
             // 4004 = auth failed, 4010..4014 = fatal (invalid intents etc.) — retrying is pointless
             code == 4004 || (code != null && code in 4010..4014) -> {
@@ -141,7 +158,7 @@ open class DiscordWebSocketImpl(
         logger.w("Gateway","Connection lost — reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
         onGatewayEvent("gateway_reconnect_scheduled attempt=$reconnectAttempts delayMs=$delayMs freshIdentify=${reconnectAttempts >= 3}")
         delay(delayMs)
-        if (!deliberateClose && epoch == connectEpoch) connect()
+        if (!deliberateClose && epoch == connectEpoch) connectInternal()
     }
 
     private suspend fun onMessage(jsonString: String) {
@@ -286,6 +303,7 @@ open class DiscordWebSocketImpl(
     override fun close() {
         onGatewayEvent("gateway_close deliberate=true wasConnected=$connected")
         deliberateClose = true
+        connecting = false
         connectEpoch++
         reconnectAttempts = 0
         lastPresence = null
