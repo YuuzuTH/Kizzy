@@ -144,7 +144,13 @@ fun AppOverrideDialog(
     var button1Url by rememberSaveable { mutableStateOf(initial.button1Url.orEmpty()) }
     var button2Text by rememberSaveable { mutableStateOf(initial.button2Text.orEmpty()) }
     var button2Url by rememberSaveable { mutableStateOf(initial.button2Url.orEmpty()) }
-    var activityType by rememberSaveable { mutableStateOf(initial.activityType ?: 0) }
+    // Nullable, same tri-state pattern as `status` below (see StatusRow) — null renders as the
+    // "Default" chip and means "inherit the mode's own default", not "explicitly Playing". Was
+    // coerced to 0 here before, which meant *every* saved override silently pinned Playing even
+    // if the user never touched this tab — invisible for App Detection (no global default to
+    // inherit from) but a real regression for Media RPC's "Custom Activity Type" Settings toggle,
+    // which that coercion would silently stop applying to any app with any customization at all.
+    var activityType by rememberSaveable { mutableStateOf(initial.activityType) }
     var showTimestamps by rememberSaveable { mutableStateOf(initial.showTimestamps ?: true) }
     var status by rememberSaveable { mutableStateOf(initial.status) }
     var partyCurrent by rememberSaveable { mutableStateOf(initial.partyCurrentSize?.toString().orEmpty()) }
@@ -185,7 +191,7 @@ fun AppOverrideDialog(
         button1Url = source.button1Url.orEmpty()
         button2Text = source.button2Text.orEmpty()
         button2Url = source.button2Url.orEmpty()
-        activityType = source.activityType ?: 0
+        activityType = source.activityType
         showTimestamps = source.showTimestamps ?: true
         status = source.status
         partyCurrent = source.partyCurrentSize?.toString().orEmpty()
@@ -318,7 +324,7 @@ fun AppOverrideDialog(
                             smallImageUrl.isNotBlank() || smallText.isNotBlank(),
                         button1Text.isNotBlank() || button1Url.isNotBlank() ||
                             button2Text.isNotBlank() || button2Url.isNotBlank(),
-                        activityType != 0 || streamUrl.isNotBlank() || !showTimestamps ||
+                        activityType != null || streamUrl.isNotBlank() || !showTimestamps ||
                             !status.isNullOrBlank() || partyCurrent.isNotBlank() || partyMax.isNotBlank(),
                         false,
                     )
@@ -677,10 +683,14 @@ private fun ImageField(
     }
 }
 
+/** [selected] is null for "inherit the mode's own default" — same tri-state convention as
+ *  [StatusRow] below. Was a plain non-null Int before, which meant the dialog could never
+ *  actually represent "unset" once saved; see the doc comment on `activityType` above. */
 @Composable
-private fun ActivityTypeRow(selected: Int, onSelect: (Int) -> Unit) {
+private fun ActivityTypeRow(selected: Int?, onSelect: (Int?) -> Unit) {
     // (value, label) — value 4 is intentionally absent from Discord's activity types.
     val types = listOf(
+        null to R.string.app_override_status_default,
         0 to R.string.activity_type_playing,
         1 to R.string.activity_type_streaming,
         2 to R.string.activity_type_listening,
