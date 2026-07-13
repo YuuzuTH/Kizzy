@@ -28,6 +28,26 @@ import com.my.kizzy.resources.R
 // roles across the whole app, light and dark alike. Users who don't like it can
 // still pick their own color from the in-app picker (feature_settings/Appearance).
 const val DEFAULT_SEED_COLOR = 0xFF7C5CBF.toInt()
+
+// Kizzy's pre-rebrand default (dead8309's original purple). SharedPreferences/MMKV
+// persists across app updates, so bumping DEFAULT_SEED_COLOR alone never reaches an
+// existing install that already has an explicit THEME_COLOR on disk — including the
+// common case where nobody ever touched the picker, but some earlier build session
+// still wrote the then-current default verbatim. If the stored color is still
+// exactly this old value, nobody deliberately chose it over the new brand — safe to
+// carry them over once. A genuinely custom-picked color would essentially never
+// coincide with this exact ARGB by chance, so real choices are left untouched.
+private const val LEGACY_KIZZY_SEED_COLOR = 0xFFAF92F1.toInt()
+
+private fun resolveSeedColor(): Int {
+    val stored = Prefs[Prefs.THEME_COLOR, LEGACY_KIZZY_SEED_COLOR]
+    if (stored == LEGACY_KIZZY_SEED_COLOR) {
+        Prefs[Prefs.THEME_COLOR] = DEFAULT_SEED_COLOR
+        return DEFAULT_SEED_COLOR
+    }
+    return stored
+}
+
 data class AppSettings(
     val darkTheme: DarkThemePreference = DarkThemePreference(),
     val isDynamicColorEnabled: Boolean = false,
@@ -48,7 +68,7 @@ private val mutableAppSettingsStateFlow = MutableStateFlow(
             isHighContrastModeEnabled = Prefs[Prefs.HIGH_CONTRAST, false]
         ),
         isDynamicColorEnabled = Prefs[Prefs.DYNAMIC_COLOR, false],
-        seedColor = Prefs[Prefs.THEME_COLOR, DEFAULT_SEED_COLOR],
+        seedColor = resolveSeedColor(),
         paletteStyleIndex = Prefs[Prefs.PALETTE_STYLE, 0]
     )
 )

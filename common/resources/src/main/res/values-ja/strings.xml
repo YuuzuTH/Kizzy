@@ -47,8 +47,8 @@
     <string name="welcome">ようこそ</string>
     <string name="features">機能</string>
     <string name="account">アカウント</string>
-    <string name="display">表示</string>
-    <string name="about">Kizzyについて</string>
+    <string name="display">テーマ</string>
+    <string name="about">アプリについて</string>
     <string name="settings">設定</string>
     <string name="language">言語</string>
     <string name="design_credits">デザインクレジット</string>
