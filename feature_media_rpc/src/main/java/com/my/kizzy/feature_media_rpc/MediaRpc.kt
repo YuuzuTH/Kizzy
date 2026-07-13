@@ -124,10 +124,13 @@ private val imageCompletions = listOf(
 
 // Button URLs get the url-encoded variants instead — meant for building a search-link button
 // (e.g. a YouTube/Google search for the currently playing track) that still updates per song.
+// APP_NAME is deliberately NOT offered here (unlike in textCompletions): TemplateProcessor
+// substitutes it raw, un-encoded, so an app name with a space or "&" (e.g. "YouTube Music",
+// "Amazon Music") would break the URL — only offer placeholders here that are guaranteed
+// URL-safe.
 private val buttonUrlCompletions = listOf(
     TemplateKeys.MEDIA_TITLE_URLENCODED to R.string.completion_media_title_urlencoded,
     TemplateKeys.MEDIA_ARTIST_URLENCODED to R.string.completion_media_artist_urlencoded,
-    TemplateKeys.APP_NAME to R.string.completion_app_name,
 )
 
 @SuppressLint("MutableCollectionMutableState")

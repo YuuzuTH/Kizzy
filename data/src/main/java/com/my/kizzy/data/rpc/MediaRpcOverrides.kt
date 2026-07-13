@@ -60,27 +60,32 @@ object MediaRpcOverrides {
     }
 
     /**
-     * Fully-resolved per-track presence for [packageName]: every override text field is run
-     * through [templateProcessor] (falling back to [default]'s corresponding field when blank),
-     * image fields additionally accept the special tokens in [TemplateKeys] ([coverArt]/
-     * [appIcon]/[playbackIcon] resolve those tokens; anything else is treated as a literal
-     * URL/uploaded-asset id exactly like [AppRpcOverrides] does). [globalActivityType]/
-     * [globalStatus]/[globalButtons] are the pre-override, Settings-driven defaults Media RPC
-     * already computed before this override system existed — used whenever the override leaves
-     * that field unset, same null-is-additive contract as everywhere else in [AppRpcOverride].
+     * Fully-resolved per-track presence from [override] (already looked up by the caller via
+     * [of] — taken as a parameter here rather than re-deriving it from a package name, so a
+     * single presence update doesn't decode the whole overrides map from Prefs twice): every
+     * override text field is run through [templateProcessor] (falling back to [default]'s
+     * corresponding field when blank), image fields additionally accept the special tokens in
+     * [TemplateKeys] ([coverArt]/[appIcon]/[playbackIcon] resolve those tokens; anything else is
+     * treated as a literal URL/uploaded-asset id exactly like [AppRpcOverrides] does — [appIcon]
+     * is a supplier, not a plain value, so its (non-trivial: it reads+decodes the saved-images
+     * map) construction is skipped entirely unless an override actually references
+     * {{app_icon}}). [globalActivityType]/[globalStatus]/[globalButtons] are the pre-override,
+     * Settings-driven defaults Media RPC already computed before this override system existed —
+     * used whenever the override leaves that field unset, same null-is-additive contract as
+     * everywhere else in [AppRpcOverride].
      */
     fun resolveFull(
-        packageName: String,
+        override: AppRpcOverride?,
         default: CommonRpc,
         templateProcessor: TemplateProcessor,
         coverArt: RpcImage?,
-        appIcon: RpcImage?,
+        appIcon: () -> RpcImage,
         playbackIcon: RpcImage?,
         globalActivityType: Int,
         globalStatus: String,
         globalButtons: List<RpcButton>?,
     ): CommonRpc {
-        val o = of(packageName)
+        val o = override
         if (o == null || o.isEmpty) {
             return default.copy(
                 type = globalActivityType,
@@ -97,7 +102,7 @@ object MediaRpcOverrides {
             return when {
                 v.isNullOrBlank() -> fallback
                 v == TemplateKeys.IMAGE_COVER_ART -> coverArt ?: fallback
-                v == TemplateKeys.IMAGE_APP_ICON -> appIcon ?: fallback
+                v == TemplateKeys.IMAGE_APP_ICON -> appIcon()
                 v == TemplateKeys.IMAGE_PLAYBACK_ICON -> playbackIcon ?: fallback
                 else -> v.toRpcImage()
             }

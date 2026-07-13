@@ -388,8 +388,8 @@ fun AppOverrideDialog(
                             when (page) {
                                 0 -> {
                                     Field(name, { name = it }, R.string.app_override_name, completions = textCompletions)
-                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true, completions = textCompletions)
-                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true, completions = textCompletions)
+                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
+                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_hint),
@@ -400,9 +400,9 @@ fun AppOverrideDialog(
 
                                 1 -> {
                                     ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage, completions = imageCompletions)
-                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true, completions = textCompletions)
+                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
                                     ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage, completions = imageCompletions)
-                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true, completions = textCompletions)
+                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_image_hint),
@@ -506,15 +506,22 @@ fun AppOverrideDialog(
                                     // previewTransform resolves template placeholders against a
                                     // sample track for Media RPC overrides; App Detection (the
                                     // default caller) leaves it null and the fields render as-is,
-                                    // same as before this parameter existed.
+                                    // same as before this parameter existed. Also run over the
+                                    // image fields: the special {{cover_art}}/{{app_icon}}/
+                                    // {{playback_icon}} tokens aren't real URLs, so without this
+                                    // the preview would try to load the literal "{{cover_art}}"
+                                    // string as an image and show a broken-image icon. There's no
+                                    // real sample image to resolve them to here, so the transform
+                                    // (which strips unmatched placeholders to "") at least renders
+                                    // as no-image instead of a broken one.
                                     val t = previewTransform ?: { it }
                                     PresenceCardPreview(
                                         name = t(name),
                                         defaultName = appName,
                                         details = t(details),
                                         state = t(state),
-                                        imageUrl = imageUrl,
-                                        smallImageUrl = smallImageUrl,
+                                        imageUrl = t(imageUrl),
+                                        smallImageUrl = t(smallImageUrl),
                                         partyCurrent = partyCurrent.toIntOrNull(),
                                         partyMax = partyMax.toIntOrNull(),
                                     )
@@ -579,6 +586,12 @@ private fun Field(
     keyboardType: KeyboardType = KeyboardType.Text,
     charLimited: Boolean = false,
     completions: List<Pair<String, Int>> = emptyList(),
+    // For a templated field (Media RPC), `value` is the source template, not what actually
+    // ships to Discord — measuring *that* against the 128-char limit would warn on a short
+    // template that resolves long, or miss one that resolves short. When set, the char count
+    // below is measured on previewTransform(value) (resolved against the same sample track as
+    // the Preview tab) instead of the raw template text.
+    previewTransform: ((String) -> String)? = null,
 ) {
     if (completions.isEmpty()) {
         OutlinedTextField(
@@ -598,9 +611,10 @@ private fun Field(
             completionList = completions,
         )
     }
-    if (charLimited && value.length > RPC_FIELD_CHAR_LIMIT) {
+    val measuredLength = (previewTransform?.invoke(value) ?: value).length
+    if (charLimited && measuredLength > RPC_FIELD_CHAR_LIMIT) {
         Text(
-            text = "${value.length}/$RPC_FIELD_CHAR_LIMIT — " +
+            text = "$measuredLength/$RPC_FIELD_CHAR_LIMIT — " +
                 stringResource(R.string.app_override_char_limit_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,

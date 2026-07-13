@@ -24,8 +24,9 @@ class TemplateKeys {
         const val APP_NAME = "{{app_name}}"
 
         // Added for Media RPC per-app overrides (2026-07) — same "media_"-prefixed naming
-        // convention as the four keys above, so the unmatched-placeholder cleanup regex in
-        // [TemplateProcessor.process] keeps working without changes.
+        // convention as the four keys above, matched by the unmatched-placeholder cleanup
+        // regex in [TemplateProcessor.process] (which also explicitly lists cover_art /
+        // playback_icon below, since those two don't have a media_/app_ prefix).
         const val MEDIA_ALBUM = "{{media_album}}"
         const val MEDIA_PLAYBACK_STATE = "{{media_playback_state}}"
         const val MEDIA_POSITION = "{{media_position}}"
@@ -101,9 +102,12 @@ class TemplateProcessor(
             result = result.replace(TemplateKeys.APP_NAME, detectedAppInfo.name)
         }
 
-        // NOTE: remove unreplaced placeholders
+        // NOTE: remove unreplaced placeholders — also covers the image-only tokens
+        // (cover_art/playback_icon don't have a media_/app_ prefix, so they need their own
+        // alternative here; app_icon already matched app_[^}]+ before this was added, kept
+        // explicit anyway so all three image tokens are handled the same visible way).
         result = result.replace(
-            Regex("\\{\\{(media|app)_[^}]+\\}\\}"), ""
+            Regex("\\{\\{(media_[^}]+|app_[^}]+|cover_art|playback_icon)\\}\\}"), ""
         )
 
         return result

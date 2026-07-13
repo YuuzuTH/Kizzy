@@ -122,8 +122,11 @@ class GetCurrentPlayingMedia @Inject constructor(
                 // Computed once, independent of the toggles below, so per-app overrides can
                 // reference "the app icon" / "the cover art" / "the play/pause icon" even when
                 // the corresponding legacy toggle (which only drives the *default* image
-                // assignment) is off.
-                val appIconImage = RpcImage.ApplicationIcon(pkg, context)
+                // assignment) is off. Lazy: RpcImage.ApplicationIcon's constructor eagerly
+                // reads+decodes the saved-app-icons Prefs map, which isn't free — only pay for
+                // it when the app-icon toggle or an {{app_icon}} override actually needs it,
+                // not on every presence update for every app.
+                val appIconImage by lazy { RpcImage.ApplicationIcon(pkg, context) }
                 val coverArtImage: RpcImage? = bitmap?.let {
                     RpcImage.BitmapImage(
                         context = context,
@@ -199,11 +202,15 @@ class GetCurrentPlayingMedia @Inject constructor(
                     durationMs = duration,
                 )
                 val resolved = MediaRpcOverrides.resolveFull(
-                    packageName = pkg,
+                    // Reuses the `override` already fetched at the top of this loop iteration
+                    // (line ~92) instead of re-deriving it from pkg — resolveFull used to call
+                    // MediaRpcOverrides.of(pkg) itself, decoding the whole overrides map from
+                    // Prefs a second time on every single presence update.
+                    override = override,
                     default = default,
                     templateProcessor = templateProcessor,
                     coverArt = coverArtImage,
-                    appIcon = appIconImage,
+                    appIcon = { appIconImage },
                     playbackIcon = playbackIconImage,
                     globalActivityType = globalActivityType,
                     globalStatus = globalStatus,
