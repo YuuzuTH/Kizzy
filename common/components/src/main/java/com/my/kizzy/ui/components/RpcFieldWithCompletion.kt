@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.my.kizzy.resources.R
 
 private const val MIN_CHARS_TO_TRIGGER = 2
 private const val TEMPLATE_REGEX = "\\{\\{[^{}]*\\}\\}"
@@ -217,7 +218,7 @@ fun RpcFieldWithCompletions(
             },
             enabled = enabled,
             label = { Text(stringResource(id = label)) },
-            placeholder = { Text("Type '{{' to insert a variable") },
+            placeholder = { Text(stringResource(id = R.string.rpc_field_completion_hint)) },
             keyboardOptions = keyboardOptions,
             trailingIcon = trailingIcon,
             isError = isError,

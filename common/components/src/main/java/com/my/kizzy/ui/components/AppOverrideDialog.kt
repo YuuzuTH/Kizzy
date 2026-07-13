@@ -121,6 +121,16 @@ fun AppOverrideDialog(
     // expected to have already excluded the app currently being edited and anything with an
     // empty override; this composable defensively filters isEmpty again just in case.
     otherOverrides: List<Pair<String, AppRpcOverride>> = emptyList(),
+    // Everything below is opt-in and defaults to today's App Detection behaviour unchanged —
+    // added so Media RPC's per-app overrides (2026-07) can reuse this same dialog instead of
+    // forking it: its text fields are *templates* (e.g. "{{media_title}} — {{media_artist}}")
+    // resolved fresh per track, not a static override, so the editor needs a way to (a) offer
+    // the placeholder autocomplete on the relevant fields and (b) show a resolved sample in the
+    // Preview tab instead of the raw, unprocessed "{{...}}" text.
+    textCompletions: List<Pair<String, Int>> = emptyList(),
+    imageCompletions: List<Pair<String, Int>> = emptyList(),
+    buttonUrlCompletions: List<Pair<String, Int>> = emptyList(),
+    previewTransform: ((String) -> String)? = null,
 ) {
     var name by rememberSaveable { mutableStateOf(initial.name.orEmpty()) }
     var imageUrl by rememberSaveable { mutableStateOf(initial.imageUrl.orEmpty()) }
@@ -377,9 +387,9 @@ fun AppOverrideDialog(
                         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                             when (page) {
                                 0 -> {
-                                    Field(name, { name = it }, R.string.app_override_name)
-                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true)
-                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true)
+                                    Field(name, { name = it }, R.string.app_override_name, completions = textCompletions)
+                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true, completions = textCompletions)
+                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true, completions = textCompletions)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_hint),
@@ -389,10 +399,10 @@ fun AppOverrideDialog(
                                 }
 
                                 1 -> {
-                                    ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
-                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
-                                    ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
-                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
+                                    ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage, completions = imageCompletions)
+                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true, completions = textCompletions)
+                                    ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage, completions = imageCompletions)
+                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true, completions = textCompletions)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_image_hint),
@@ -402,10 +412,10 @@ fun AppOverrideDialog(
                                 }
 
                                 2 -> {
-                                    Field(button1Text, { button1Text = it }, R.string.app_override_button1)
-                                    Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri)
-                                    Field(button2Text, { button2Text = it }, R.string.app_override_button2)
-                                    Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri)
+                                    Field(button1Text, { button1Text = it }, R.string.app_override_button1, completions = textCompletions)
+                                    Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri, completions = buttonUrlCompletions)
+                                    Field(button2Text, { button2Text = it }, R.string.app_override_button2, completions = textCompletions)
+                                    Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri, completions = buttonUrlCompletions)
                                     Text(
                                         text = stringResource(R.string.app_override_buttons_hint),
                                         style = MaterialTheme.typography.bodySmall,
@@ -493,16 +503,29 @@ fun AppOverrideDialog(
                                 }
 
                                 else -> {
+                                    // previewTransform resolves template placeholders against a
+                                    // sample track for Media RPC overrides; App Detection (the
+                                    // default caller) leaves it null and the fields render as-is,
+                                    // same as before this parameter existed.
+                                    val t = previewTransform ?: { it }
                                     PresenceCardPreview(
-                                        name = name,
+                                        name = t(name),
                                         defaultName = appName,
-                                        details = details,
-                                        state = state,
+                                        details = t(details),
+                                        state = t(state),
                                         imageUrl = imageUrl,
                                         smallImageUrl = smallImageUrl,
                                         partyCurrent = partyCurrent.toIntOrNull(),
                                         partyMax = partyMax.toIntOrNull(),
                                     )
+                                    if (previewTransform != null) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.app_override_template_preview_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -555,15 +578,26 @@ private fun Field(
     labelRes: Int,
     keyboardType: KeyboardType = KeyboardType.Text,
     charLimited: Boolean = false,
+    completions: List<Pair<String, Int>> = emptyList(),
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(stringResource(labelRes)) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier.fillMaxWidth(),
-    )
+    if (completions.isEmpty()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(stringResource(labelRes)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RpcFieldWithCompletions(
+            value = value,
+            onValueChange = onValueChange,
+            label = labelRes,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            completionList = completions,
+        )
+    }
     if (charLimited && value.length > RPC_FIELD_CHAR_LIMIT) {
         Text(
             text = "${value.length}/$RPC_FIELD_CHAR_LIMIT — " +
@@ -584,23 +618,36 @@ private fun ImageField(
     onValueChange: (String) -> Unit,
     labelRes: Int,
     onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit,
+    completions: List<Pair<String, Int>> = emptyList(),
 ) {
     val context = LocalContext.current
     var showPicker by remember { mutableStateOf(false) }
     var showProgress by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(stringResource(labelRes)) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-        trailingIcon = {
-            IconButton(onClick = { showPicker = true }) {
-                Icon(Icons.Default.Image, contentDescription = stringResource(R.string.upload_image))
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    )
+    val trailingIcon: @Composable () -> Unit = {
+        IconButton(onClick = { showPicker = true }) {
+            Icon(Icons.Default.Image, contentDescription = stringResource(R.string.upload_image))
+        }
+    }
+    if (completions.isEmpty()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(stringResource(labelRes)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            trailingIcon = trailingIcon,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RpcFieldWithCompletions(
+            value = value,
+            onValueChange = onValueChange,
+            label = labelRes,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            trailingIcon = trailingIcon,
+            completionList = completions,
+        )
+    }
     Spacer(Modifier.height(8.dp))
     ImagePicker(
         visible = showPicker,

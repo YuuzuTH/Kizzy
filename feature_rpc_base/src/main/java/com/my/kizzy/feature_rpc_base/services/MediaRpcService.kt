@@ -32,19 +32,15 @@ import com.my.kizzy.data.rpc.KizzyRPC
 import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.feature_rpc_base.observeConnectionStatus
 import com.my.kizzy.domain.interfaces.Logger
-import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
 import com.my.kizzy.feature_rpc_base.forgetActiveService
 import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
-import com.my.kizzy.preference.Prefs.MEDIA_RPC_ENABLE_TIMESTAMPS
 import com.my.kizzy.preference.Prefs.TOKEN
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -133,8 +129,13 @@ class MediaRpcService : Service() {
     }
 
     suspend private fun updatePresence() {
-        val enableTimestamps = Prefs[MEDIA_RPC_ENABLE_TIMESTAMPS, false]
-        val playingMedia = getCurrentPlayingMedia()
+        // GetCurrentPlayingMedia now resolves everything — text/images (legacy toggles or a
+        // per-app override's template), activity type, status, buttons, party and stream URL —
+        // in one place, same as AppRpcOverrides.resolveFull() does for App Detection. This
+        // service is just a thin consumer of the result, not a second place that re-reads Prefs.
+        val presence = getCurrentPlayingMedia()
+        val playingMedia = presence.rpc
+        val enableTimestamps = presence.enableTimestamps
 
         notificationManager.notify(
             Constants.NOTIFICATION_ID,
@@ -150,8 +151,6 @@ class MediaRpcService : Service() {
                 .build()
         )
 
-        val rpcButtonsString = Prefs[Prefs.RPC_BUTTONS_DATA, "{}"]
-        val rpcButtons = Json.decodeFromString<RpcButtons>(rpcButtonsString)
         when (kizzyRPC.isRpcRunning()) {
             true -> {
                 if (playingMedia.name.isBlank()) {
@@ -166,21 +165,27 @@ class MediaRpcService : Service() {
                     return
                 }
                 kizzyRPC.apply {
+                    // Same instance is reused across track/app switches; clear leftover builder
+                    // state (a previous app's buttons/party/stream URL) before building fresh —
+                    // mirrors AppDetectionService's non-running branch (this one didn't call it
+                    // before per-app overrides existed, since nothing here used to vary per app).
+                    resetBuilder()
                     setName(playingMedia.name)
-                    setType(Prefs[Prefs.CUSTOM_ACTIVITY_TYPE, 0])
+                    setType(playingMedia.type ?: 0)
                     setDetails(playingMedia.details)
                     setState(playingMedia.state)
                     setStartTimestamps(if (enableTimestamps) playingMedia.time?.start else null)
                     setStopTimestamps(if (enableTimestamps) playingMedia.time?.end else null)
-                    setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
+                    setStatus(playingMedia.status)
+                    setPartySize(playingMedia.partyCurrentSize, playingMedia.partyMaxSize)
                     setLargeImage(playingMedia.largeImage, playingMedia.largeText)
                     setSmallImage(playingMedia.smallImage, playingMedia.smallText)
-                    if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
-                        with(rpcButtons) {
-                            setButton1(button1.takeIf { it.isNotEmpty() })
-                            setButton1URL(button1Url.takeIf { it.isNotEmpty() })
-                            setButton2(button2.takeIf { it.isNotEmpty() })
-                            setButton2URL(button2Url.takeIf { it.isNotEmpty() })
+                    setStreamUrl(playingMedia.streamUrl)
+                    playingMedia.buttons?.forEachIndexed { index, btn ->
+                        if (index == 0) {
+                            setButton1(btn.label); setButton1URL(btn.url)
+                        } else {
+                            setButton2(btn.label); setButton2URL(btn.url)
                         }
                     }
                     build()

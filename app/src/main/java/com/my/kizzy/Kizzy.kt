@@ -172,7 +172,11 @@ internal fun ComponentActivity.Kizzy(
                     onBackPressed = { navController.popBackStack() },
                     state = viewModel.state.collectAsState().value,
                     hasNotificationAccess = notificationListenerAccess.value,
-                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled
+                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled,
+                    onSetOverride = viewModel::setOverride,
+                    onClearOverride = viewModel::clearOverride,
+                    onClearAllOverrides = viewModel::clearAllOverrides,
+                    onUploadImage = viewModel::uploadImage,
                 )
             }
             animatedComposable(Routes.PROFILE) {
