@@ -100,8 +100,6 @@
     <string name="change_log">บันทึกการเปลี่ยนแปลง</string>
     <string name="update">อัปเดต</string>
     <string name="configs_directory">โฟลเดอร์เก็บคอนฟิก</string>
-    <string name="custom_activity_type">ประเภทกิจกรรมกำหนดเอง</string>
-    <string name="custom_activity_type_desc">ใช้แทนประเภทกิจกรรมเริ่มต้น มีผลเฉพาะ Media และ Experimental RPC เท่านั้น</string>
     <string name="custom_activity_status">สถานะกิจกรรมกำหนดเอง</string>
     <string name="custom_activity_status_desc">ใช้แทนสถานะกิจกรรมเริ่มต้น</string>
     <string name="search">ค้นหา</string>

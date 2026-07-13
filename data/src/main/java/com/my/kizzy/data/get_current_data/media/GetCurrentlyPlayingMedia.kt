@@ -176,7 +176,7 @@ class GetCurrentPlayingMedia @Inject constructor(
                     )
                 }
 
-                val globalActivityType = Prefs[Prefs.CUSTOM_ACTIVITY_TYPE, 0]
+                val globalActivityType = Prefs[Prefs.MEDIA_RPC_ACTIVITY_TYPE, 0]
                 val globalStatus = Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"]
                 val globalButtons = if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
                     val rpcButtons = Json.decodeFromString<RpcButtons>(Prefs[Prefs.RPC_BUTTONS_DATA, "{}"])

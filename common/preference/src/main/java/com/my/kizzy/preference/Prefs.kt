@@ -159,6 +159,10 @@ object Prefs {
     const val MEDIA_RPC_SHOW_PLAYBACK_STATE = "show_playback_state"
     const val MEDIA_RPC_SHOW_SONG_AS_TITLE = "show_song_as_title"
     const val MEDIA_RPC_OVERRIDES = "media_rpc_overrides" //Json Map<packageName, AppRpcOverride> per-app presence template, same shape as APP_RPC_OVERRIDES but a separate store
+    // Activity type (Playing/Streaming/Listening/Watching/Competing) for Media RPC's default
+    // presence, scoped to this feature only — replaces the old global CUSTOM_ACTIVITY_TYPE,
+    // which silently also applied here with no per-feature visibility.
+    const val MEDIA_RPC_ACTIVITY_TYPE = "media_rpc_activity_type"
 
     //Rpc Setting Preferences
     const val USE_RPC_BUTTONS = "use_saved_rpc_buttons"

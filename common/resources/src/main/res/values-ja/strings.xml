@@ -96,8 +96,6 @@
     <string name="change_log">変更ログ</string>
     <string name="update">更新</string>
     <string name="configs_directory">設定の保存先フォルダ</string>
-    <string name="custom_activity_type">カスタムアクティビティの種類</string>
-    <string name="custom_activity_type_desc">デフォルトのアクティビティの種類を上書きします。Media RPCとExperimental RPCのみ有効です。</string>
     <string name="custom_activity_status">カスタムアクティビティステータス</string>
     <string name="custom_activity_status_desc">デフォルトのアクティビティステータスを上書きします</string>
     <string name="search">検索</string>
