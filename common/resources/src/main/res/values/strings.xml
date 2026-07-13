@@ -59,7 +59,6 @@
     <string name="enable_mediaRpc">Enable Media RPC</string>
     <string name="permission_required">Permission Required</string>
     <string name="enable_customRpc">Enable Custom RPC</string>
-    <string name="dark_theme">Dark Theme</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="privacy_policy_desc">Check the Privacy Policy</string>
     <string name="enable_console_rpc">Enable Console RPC</string>
@@ -69,12 +68,15 @@
     <string name="follow_system">Follow System</string>
     <string name="advance_settings">Advanced Settings</string>
     <string name="amoled">AMOLED Theme</string>
-    <string name="dynamic_color">Dynamic color</string>
-    <string name="dynamic_color_desc">Apply colors from wallpapers</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_brand_title">Yuzu夕 Twilight</string>
+    <string name="theme_brand_desc">The color designed just for this app</string>
+    <string name="theme_seasonal_title">Seasonal Themes</string>
+    <string name="theme_seasonal_desc">Festival and seasonal color variants</string>
+    <string name="coming_soon">Coming soon</string>
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
-    <string name="primary_color">Primary Color</string>
-    <string name="primary_color_hint">Like #666666 or 666666</string>
     <string name="android_on">On</string>
     <string name="android_off">Off</string>
     <string name="setup">Setup</string>

@@ -19,15 +19,11 @@ import android.view.Window
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import com.google.android.material.color.DynamicColors
 import com.kyant.monet.dynamicColorScheme
 
 private tailrec fun Context.findWindow(): Window? =
@@ -37,23 +33,17 @@ private tailrec fun Context.findWindow(): Window? =
         else -> null
     }
 
+// Dynamic color (wallpaper-derived, Android 12+) is retired as of the Yuzu夕
+// twilight redesign — always resolve from the app's own seed color via Monet
+// instead. This is enforced here, not just by hiding the toggle in Appearance,
+// so a leftover `isDynamicColorEnabled = true` from an old install (no longer
+// reachable from any UI) can never again override the brand color.
 @Composable
 fun getColorScheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     isHighContrastModeEnabled: Boolean = false,
-    isDynamicColorEnabled: Boolean = LocalDynamicColorSwitch.current,
 ): ColorScheme {
-    val colorScheme = when {
-        DynamicColors.isDynamicColorAvailable() && isDynamicColorEnabled -> {
-            val context = LocalContext.current
-            if (darkTheme) {
-                dynamicDarkColorScheme(context)
-            } else {
-                dynamicLightColorScheme(context)
-            }
-        }
-        else -> dynamicColorScheme(!darkTheme)
-    }.run {
+    val colorScheme = dynamicColorScheme(!darkTheme).run {
         if (isHighContrastModeEnabled && darkTheme) copy(
             surface = Color.Black,
             background = Color.Black,
@@ -66,13 +56,11 @@ fun getColorScheme(
 fun KizzyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     isHighContrastModeEnabled: Boolean = false,
-    isDynamicColorEnabled: Boolean,
     content: @Composable () -> Unit
 ) {
     val colorScheme = getColorScheme(
         darkTheme,
         isHighContrastModeEnabled,
-        isDynamicColorEnabled,
     )
     val window = LocalView.current.context.findWindow()
     val view = LocalView.current

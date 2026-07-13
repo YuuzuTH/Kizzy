@@ -62,7 +62,6 @@
     <string name="enable_mediaRpc">เปิด Media RPC</string>
     <string name="permission_required">ต้องการสิทธิ์เพิ่มเติม</string>
     <string name="enable_customRpc">เปิด Custom RPC</string>
-    <string name="dark_theme">ธีมมืด</string>
     <string name="privacy_policy">นโยบายความเป็นส่วนตัว</string>
     <string name="privacy_policy_desc">อ่านนโยบายความเป็นส่วนตัว</string>
     <string name="enable_console_rpc">เปิด Console RPC</string>
@@ -72,12 +71,15 @@
     <string name="follow_system">ตามระบบ</string>
     <string name="advance_settings">การตั้งค่าขั้นสูง</string>
     <string name="amoled">ธีม AMOLED</string>
-    <string name="dynamic_color">สีไดนามิก</string>
-    <string name="dynamic_color_desc">ใช้โทนสีจากภาพพื้นหลัง</string>
+    <string name="theme_light">สีขาว</string>
+    <string name="theme_dark">สีดำ</string>
+    <string name="theme_brand_title">ธีมยามเย็น 夕</string>
+    <string name="theme_brand_desc">ธีมสีที่ออกแบบมาสำหรับแอพนี้โดยเฉพาะ</string>
+    <string name="theme_seasonal_title">ธีมตามเทศกาล</string>
+    <string name="theme_seasonal_desc">แต่งสีตามเทศกาล/ฤดูกาล</string>
+    <string name="coming_soon">เร็วๆ นี้</string>
     <string name="cancel">ยกเลิก</string>
     <string name="confirm">ยืนยัน</string>
-    <string name="primary_color">สีหลัก</string>
-    <string name="primary_color_hint">เช่น #666666 หรือ 666666</string>
     <string name="android_on">เปิด</string>
     <string name="android_off">ปิด</string>
     <string name="setup">ตั้งค่าเริ่มต้น</string>

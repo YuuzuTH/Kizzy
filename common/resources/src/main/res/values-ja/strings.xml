@@ -58,7 +58,6 @@
     <string name="enable_mediaRpc">メディアアクティビティを有効にする</string>
     <string name="permission_required">権限が必要です。</string>
     <string name="enable_customRpc">カスタムアクティビティを有効にする</string>
-    <string name="dark_theme">ダークテーマ</string>
     <string name="privacy_policy">プライバシーポリシー</string>
     <string name="privacy_policy_desc">プライバシーポリシーを確認</string>
     <string name="enable_console_rpc">ゲーム機アクティビティを有効にする</string>
@@ -68,12 +67,15 @@
     <string name="follow_system">システム設定に従う</string>
     <string name="advance_settings">高度な設定</string>
     <string name="amoled">Amoledテーマ</string>
-    <string name="dynamic_color">ダイナミックカラー</string>
-    <string name="dynamic_color_desc">壁紙から自動的に色を選択します。</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="theme_brand_title">夕暮れテーマ 夕</string>
+    <string name="theme_brand_desc">このアプリのために作られた専用カラー</string>
+    <string name="theme_seasonal_title">季節限定テーマ</string>
+    <string name="theme_seasonal_desc">季節やイベントに合わせたカラー</string>
+    <string name="coming_soon">近日公開</string>
     <string name="cancel">キャンセル</string>
     <string name="confirm">確認</string>
-    <string name="primary_color">プライマリカラー</string>
-    <string name="primary_color_hint">カラーコード (#666666, 666666 等の形式)</string>
     <string name="android_on">オン</string>
     <string name="android_off">オフ</string>
     <string name="setup">セットアップ</string>
