@@ -23,8 +23,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.my.kizzy.resources.R
 
-// TODO get seed color from colorscheme.kt
-const val DEFAULT_SEED_COLOR =  0xFFAF92F1.toInt()
+// Neutral placeholder — original Kizzy brand purple (0xFFAF92F1) removed pending
+// the Yuzu夕 twilight theme redesign (Tier 4). Whole app re-themes from this one
+// seed via Monet's algorithmic tonal palettes (see color/Monet.kt), so swapping
+// this single value is the entire "retheme the app" operation.
+const val DEFAULT_SEED_COLOR = 0xFF6E6E73.toInt()
 data class AppSettings(
     val darkTheme: DarkThemePreference = DarkThemePreference(),
     val isDynamicColorEnabled: Boolean = false,
