@@ -41,9 +41,11 @@ open class DiscordWebSocketImpl(
     // This module can't depend on the `data` module's LogWebhookReporter directly (that would
     // be a circular Gradle dependency: data already depends on gateway), so the host wires this
     // callback instead — same pattern as [onConnectionStateChanged] above.
-    private val onGatewayEvent: (String) -> Unit = {}
+    private val onGatewayEvent: (String) -> Unit = {},
+    // Overridable only so gateway/src/test can point this at a local fake gateway server
+    // instead of the real Discord endpoint — every production caller relies on the default.
+    private val gatewayUrl: String = "wss://gateway.discord.gg/?v=10&encoding=json"
 ) : DiscordWebSocket {
-    private val gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json"
     private var websocket: DefaultClientWebSocketSession? = null
     private var sequence = 0
     private var sessionId: String? = null

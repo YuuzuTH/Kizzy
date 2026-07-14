@@ -79,6 +79,11 @@ ktor-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "kt
 ktor-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-kotlinx-serialization = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+# Server-side, testImplementation only (gateway module tests) — spins up a real local
+# WebSocket endpoint that fakes just enough of the Discord gateway handshake to drive
+# DiscordWebSocketImpl through its real network stack instead of a hand-rolled fake.
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
 
 # Third-party libraries
 blankj-utilcodex = { module = "com.blankj:utilcodex", version.ref = "blankj-utilcodex" }
