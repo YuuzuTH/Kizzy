@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
+import java.util.concurrent.atomic.AtomicLong
 
 open class DiscordWebSocketImpl(
     private val token: String,
@@ -386,9 +387,24 @@ open class DiscordWebSocketImpl(
         websocket = null
     }
 
+    // Bumped by every call that intends to transmit `lastPresence` — [sendActivity]'s wait loop
+    // and [resendLastPresence] each capture the generation in force when they decide to send and
+    // only actually transmit if it's still current when they wake up. Without this, two sends
+    // racing (e.g. a track-change update sitting in sendActivity's reconnect-wait loop while
+    // READY/RESUMED fires and resendLastPresence fires a second, independent send on a totally
+    // different coroutine/scope) can complete in either order — whichever finishes last wins on
+    // Discord's side regardless of which one was actually requested more recently, so a track
+    // change can silently lose to a stale replay of the *previous* track. Guards against the
+    // Media/App-Detection callback debounce (MediaRpcService's `scope.cancelChildren()`) too:
+    // that only cancels coroutines under its own scope, not this class's independently-launched
+    // resendLastPresence(), so it can't prevent this race on its own.
+    private val presenceGeneration = AtomicLong(0)
+
     private fun resendLastPresence() {
         val presence = lastPresence ?: return
+        val generation = presenceGeneration.incrementAndGet()
         launch {
+            if (generation != presenceGeneration.get()) return@launch
             logger.i("Gateway","Re-sending last presence after (re)connect")
             send(op = PRESENCE_UPDATE, d = presence)
         }
@@ -398,6 +414,7 @@ open class DiscordWebSocketImpl(
         // Remember the latest presence so a (re)connect can replay it — a drop
         // here is recoverable because READY/RESUMED re-sends it.
         lastPresence = presence
+        val generation = presenceGeneration.incrementAndGet()
         var waitedMs = 0L
         while (!isSocketConnectedToAccount()){
             if (deliberateClose) {
@@ -411,10 +428,19 @@ open class DiscordWebSocketImpl(
                 return
             }
         }
+        // A newer sendActivity()/resendLastPresence() call already took over while this one was
+        // waiting for the socket — that one owns sending now, this one backing off avoids two
+        // sends landing out of order.
+        if (generation != presenceGeneration.get()) return
         logger.i("Gateway","Sending $PRESENCE_UPDATE")
         send(
             op = PRESENCE_UPDATE,
-            d = presence
+            // Re-read lastPresence instead of the captured `presence` param: the write to
+            // lastPresence and the generation bump above are two separate, non-atomic steps, so
+            // under real concurrent callers the call that ends up "current" per the generation
+            // check isn't guaranteed to be the same call whose lastPresence write happened last.
+            // lastPresence itself is always the true latest regardless of which call wins.
+            d = lastPresence ?: presence
         )
     }
 
