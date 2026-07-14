@@ -121,6 +121,16 @@ fun AppOverrideDialog(
     // expected to have already excluded the app currently being edited and anything with an
     // empty override; this composable defensively filters isEmpty again just in case.
     otherOverrides: List<Pair<String, AppRpcOverride>> = emptyList(),
+    // Everything below is opt-in and defaults to today's App Detection behaviour unchanged —
+    // added so Media RPC's per-app overrides (2026-07) can reuse this same dialog instead of
+    // forking it: its text fields are *templates* (e.g. "{{media_title}} — {{media_artist}}")
+    // resolved fresh per track, not a static override, so the editor needs a way to (a) offer
+    // the placeholder autocomplete on the relevant fields and (b) show a resolved sample in the
+    // Preview tab instead of the raw, unprocessed "{{...}}" text.
+    textCompletions: List<Pair<String, Int>> = emptyList(),
+    imageCompletions: List<Pair<String, Int>> = emptyList(),
+    buttonUrlCompletions: List<Pair<String, Int>> = emptyList(),
+    previewTransform: ((String) -> String)? = null,
 ) {
     var name by rememberSaveable { mutableStateOf(initial.name.orEmpty()) }
     var imageUrl by rememberSaveable { mutableStateOf(initial.imageUrl.orEmpty()) }
@@ -134,7 +144,13 @@ fun AppOverrideDialog(
     var button1Url by rememberSaveable { mutableStateOf(initial.button1Url.orEmpty()) }
     var button2Text by rememberSaveable { mutableStateOf(initial.button2Text.orEmpty()) }
     var button2Url by rememberSaveable { mutableStateOf(initial.button2Url.orEmpty()) }
-    var activityType by rememberSaveable { mutableStateOf(initial.activityType ?: 0) }
+    // Nullable, same tri-state pattern as `status` below (see StatusRow) — null renders as the
+    // "Default" chip and means "inherit the mode's own default", not "explicitly Playing". Was
+    // coerced to 0 here before, which meant *every* saved override silently pinned Playing even
+    // if the user never touched this tab — invisible for App Detection (no global default to
+    // inherit from) but a real regression for Media RPC's "Custom Activity Type" Settings toggle,
+    // which that coercion would silently stop applying to any app with any customization at all.
+    var activityType by rememberSaveable { mutableStateOf(initial.activityType) }
     var showTimestamps by rememberSaveable { mutableStateOf(initial.showTimestamps ?: true) }
     var status by rememberSaveable { mutableStateOf(initial.status) }
     var partyCurrent by rememberSaveable { mutableStateOf(initial.partyCurrentSize?.toString().orEmpty()) }
@@ -175,7 +191,7 @@ fun AppOverrideDialog(
         button1Url = source.button1Url.orEmpty()
         button2Text = source.button2Text.orEmpty()
         button2Url = source.button2Url.orEmpty()
-        activityType = source.activityType ?: 0
+        activityType = source.activityType
         showTimestamps = source.showTimestamps ?: true
         status = source.status
         partyCurrent = source.partyCurrentSize?.toString().orEmpty()
@@ -308,7 +324,7 @@ fun AppOverrideDialog(
                             smallImageUrl.isNotBlank() || smallText.isNotBlank(),
                         button1Text.isNotBlank() || button1Url.isNotBlank() ||
                             button2Text.isNotBlank() || button2Url.isNotBlank(),
-                        activityType != 0 || streamUrl.isNotBlank() || !showTimestamps ||
+                        activityType != null || streamUrl.isNotBlank() || !showTimestamps ||
                             !status.isNullOrBlank() || partyCurrent.isNotBlank() || partyMax.isNotBlank(),
                         false,
                     )
@@ -377,9 +393,9 @@ fun AppOverrideDialog(
                         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                             when (page) {
                                 0 -> {
-                                    Field(name, { name = it }, R.string.app_override_name)
-                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true)
-                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true)
+                                    Field(name, { name = it }, R.string.app_override_name, completions = textCompletions)
+                                    Field(details, { details = it }, R.string.app_override_details, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
+                                    Field(state, { state = it }, R.string.app_override_state, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_hint),
@@ -389,10 +405,10 @@ fun AppOverrideDialog(
                                 }
 
                                 1 -> {
-                                    ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage)
-                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true)
-                                    ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage)
-                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true)
+                                    ImageField(imageUrl, { imageUrl = it }, R.string.app_override_image, onUploadImage, completions = imageCompletions)
+                                    Field(largeText, { largeText = it }, R.string.app_override_large_text, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
+                                    ImageField(smallImageUrl, { smallImageUrl = it }, R.string.app_override_small_image, onUploadImage, completions = imageCompletions)
+                                    Field(smallText, { smallText = it }, R.string.app_override_small_text, charLimited = true, completions = textCompletions, previewTransform = previewTransform)
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = stringResource(R.string.app_override_image_hint),
@@ -402,10 +418,10 @@ fun AppOverrideDialog(
                                 }
 
                                 2 -> {
-                                    Field(button1Text, { button1Text = it }, R.string.app_override_button1)
-                                    Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri)
-                                    Field(button2Text, { button2Text = it }, R.string.app_override_button2)
-                                    Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri)
+                                    Field(button1Text, { button1Text = it }, R.string.app_override_button1, completions = textCompletions)
+                                    Field(button1Url, { button1Url = it }, R.string.app_override_button1_url, KeyboardType.Uri, completions = buttonUrlCompletions)
+                                    Field(button2Text, { button2Text = it }, R.string.app_override_button2, completions = textCompletions)
+                                    Field(button2Url, { button2Url = it }, R.string.app_override_button2_url, KeyboardType.Uri, completions = buttonUrlCompletions)
                                     Text(
                                         text = stringResource(R.string.app_override_buttons_hint),
                                         style = MaterialTheme.typography.bodySmall,
@@ -493,16 +509,36 @@ fun AppOverrideDialog(
                                 }
 
                                 else -> {
+                                    // previewTransform resolves template placeholders against a
+                                    // sample track for Media RPC overrides; App Detection (the
+                                    // default caller) leaves it null and the fields render as-is,
+                                    // same as before this parameter existed. Also run over the
+                                    // image fields: the special {{cover_art}}/{{app_icon}}/
+                                    // {{playback_icon}} tokens aren't real URLs, so without this
+                                    // the preview would try to load the literal "{{cover_art}}"
+                                    // string as an image and show a broken-image icon. There's no
+                                    // real sample image to resolve them to here, so the transform
+                                    // (which strips unmatched placeholders to "") at least renders
+                                    // as no-image instead of a broken one.
+                                    val t = previewTransform ?: { it }
                                     PresenceCardPreview(
-                                        name = name,
+                                        name = t(name),
                                         defaultName = appName,
-                                        details = details,
-                                        state = state,
-                                        imageUrl = imageUrl,
-                                        smallImageUrl = smallImageUrl,
+                                        details = t(details),
+                                        state = t(state),
+                                        imageUrl = t(imageUrl),
+                                        smallImageUrl = t(smallImageUrl),
                                         partyCurrent = partyCurrent.toIntOrNull(),
                                         partyMax = partyMax.toIntOrNull(),
                                     )
+                                    if (previewTransform != null) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.app_override_template_preview_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -555,18 +591,36 @@ private fun Field(
     labelRes: Int,
     keyboardType: KeyboardType = KeyboardType.Text,
     charLimited: Boolean = false,
+    completions: List<Pair<String, Int>> = emptyList(),
+    // For a templated field (Media RPC), `value` is the source template, not what actually
+    // ships to Discord — measuring *that* against the 128-char limit would warn on a short
+    // template that resolves long, or miss one that resolves short. When set, the char count
+    // below is measured on previewTransform(value) (resolved against the same sample track as
+    // the Preview tab) instead of the raw template text.
+    previewTransform: ((String) -> String)? = null,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(stringResource(labelRes)) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier.fillMaxWidth(),
-    )
-    if (charLimited && value.length > RPC_FIELD_CHAR_LIMIT) {
+    if (completions.isEmpty()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(stringResource(labelRes)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RpcFieldWithCompletions(
+            value = value,
+            onValueChange = onValueChange,
+            label = labelRes,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            completionList = completions,
+        )
+    }
+    val measuredLength = (previewTransform?.invoke(value) ?: value).length
+    if (charLimited && measuredLength > RPC_FIELD_CHAR_LIMIT) {
         Text(
-            text = "${value.length}/$RPC_FIELD_CHAR_LIMIT — " +
+            text = "$measuredLength/$RPC_FIELD_CHAR_LIMIT — " +
                 stringResource(R.string.app_override_char_limit_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
@@ -584,23 +638,36 @@ private fun ImageField(
     onValueChange: (String) -> Unit,
     labelRes: Int,
     onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit,
+    completions: List<Pair<String, Int>> = emptyList(),
 ) {
     val context = LocalContext.current
     var showPicker by remember { mutableStateOf(false) }
     var showProgress by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(stringResource(labelRes)) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-        trailingIcon = {
-            IconButton(onClick = { showPicker = true }) {
-                Icon(Icons.Default.Image, contentDescription = stringResource(R.string.upload_image))
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    )
+    val trailingIcon: @Composable () -> Unit = {
+        IconButton(onClick = { showPicker = true }) {
+            Icon(Icons.Default.Image, contentDescription = stringResource(R.string.upload_image))
+        }
+    }
+    if (completions.isEmpty()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(stringResource(labelRes)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            trailingIcon = trailingIcon,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RpcFieldWithCompletions(
+            value = value,
+            onValueChange = onValueChange,
+            label = labelRes,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            trailingIcon = trailingIcon,
+            completionList = completions,
+        )
+    }
     Spacer(Modifier.height(8.dp))
     ImagePicker(
         visible = showPicker,
@@ -616,10 +683,14 @@ private fun ImageField(
     }
 }
 
+/** [selected] is null for "inherit the mode's own default" — same tri-state convention as
+ *  [StatusRow] below. Was a plain non-null Int before, which meant the dialog could never
+ *  actually represent "unset" once saved; see the doc comment on `activityType` above. */
 @Composable
-private fun ActivityTypeRow(selected: Int, onSelect: (Int) -> Unit) {
+private fun ActivityTypeRow(selected: Int?, onSelect: (Int?) -> Unit) {
     // (value, label) — value 4 is intentionally absent from Discord's activity types.
     val types = listOf(
+        null to R.string.app_override_status_default,
         0 to R.string.activity_type_playing,
         1 to R.string.activity_type_streaming,
         2 to R.string.activity_type_listening,

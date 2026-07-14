@@ -535,6 +535,12 @@ class ExperimentalRpc : Service() {
                 if (useAppsRpc) {
                     startAppDetectionCoroutine()
                 } else {
+                    // Same grace delay as handleMediaUpdate() above, for the same reason — a
+                    // player (observed with YT Music) commonly destroys its MediaSession and
+                    // creates a fresh one for the next track rather than reusing it. Without
+                    // this, updatePresence(null, null, null) here reads as "nothing playing"
+                    // mid-transition and closes the RPC over what's really just a momentary gap.
+                    delay(1000)
                     updatePresence(appInfo = null, richMediaInfo = null, rawMediaMetadata = null)
                 }
             }

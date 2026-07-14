@@ -11,7 +11,7 @@ import com.kyant.monet.TonalPalettes.Companion.toTonalPalettes
 import kotlin.math.roundToInt
 
 val LocalTonalPalettes = staticCompositionLocalOf {
-    Color(0xFFAF92F1).toTonalPalettes()
+    Color(0xFF7C5CBF).toTonalPalettes()
 }
 
 inline val Number.a1: Color

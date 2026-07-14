@@ -36,9 +36,6 @@ class Routes {
         const val STYLE_AND_APPEARANCE = "style_and_appearance"
         const val RPC_SETTINGS = "rpc_settings"
 
-        /* Display Screen */
-        const val DARK_THEME ="dark_theme_screen"
-
         /* Logs Screen */
         const val LOGS_SCREEN= "logs_screen"
 
