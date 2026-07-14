@@ -248,8 +248,17 @@ class MediaRpcService : Service() {
         override fun onSessionDestroyed() {
             super.onSessionDestroyed()
 
+            // Same grace delay as the two callbacks above, for the same reason — a player
+            // (observed with YT Music) commonly destroys its MediaSession and creates a fresh
+            // one for the next track rather than reusing it, so this fires mid-transition, not
+            // just on a genuine stop. Without the delay, updatePresence() reads no session at
+            // all (the new one hasn't registered yet) and treats a track change as "stopped",
+            // closing the gateway connection over what's really just a momentary gap.
             scope.coroutineContext.cancelChildren()
-            scope.launch { updatePresence() }
+            scope.launch {
+                delay(1000)
+                updatePresence()
+            }
         }
     }
 
