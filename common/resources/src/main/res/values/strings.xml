@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">D_RPC Yuzu夕</string>
-    <string name="qs_tile_label" translatable="false">Yuzu夕 Quickie</string>
+    <string name="qs_tile_label" translatable="false">Kizzy Quickie</string>
 
     <!-- Activities -->
     <string name="activity_name">Activity Name</string>
@@ -48,7 +48,7 @@
     <string name="welcome">Welcome</string>
     <string name="features">Features</string>
     <string name="account">Account</string>
-    <string name="display">Theme</string>
+    <string name="display">Display</string>
     <string name="about">About</string>
     <string name="settings">Settings</string>
     <string name="language">Language</string>
@@ -59,6 +59,7 @@
     <string name="enable_mediaRpc">Enable Media RPC</string>
     <string name="permission_required">Permission Required</string>
     <string name="enable_customRpc">Enable Custom RPC</string>
+    <string name="dark_theme">Dark Theme</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="privacy_policy_desc">Check the Privacy Policy</string>
     <string name="enable_console_rpc">Enable Console RPC</string>
@@ -68,15 +69,12 @@
     <string name="follow_system">Follow System</string>
     <string name="advance_settings">Advanced Settings</string>
     <string name="amoled">AMOLED Theme</string>
-    <string name="theme_light">Light</string>
-    <string name="theme_dark">Dark</string>
-    <string name="theme_brand_title">Yuzu夕 Twilight</string>
-    <string name="theme_brand_desc">The color designed just for this app</string>
-    <string name="theme_seasonal_title">Seasonal Themes</string>
-    <string name="theme_seasonal_desc">Festival and seasonal color variants</string>
-    <string name="coming_soon">Coming soon</string>
+    <string name="dynamic_color">Dynamic color</string>
+    <string name="dynamic_color_desc">Apply colors from wallpapers</string>
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
+    <string name="primary_color">Primary Color</string>
+    <string name="primary_color_hint">Like #666666 or 666666</string>
     <string name="android_on">On</string>
     <string name="android_off">Off</string>
     <string name="setup">Setup</string>
@@ -97,6 +95,8 @@
     <string name="change_log">Change Log</string>
     <string name="update">Update</string>
     <string name="configs_directory">Configs Directory</string>
+    <string name="custom_activity_type">Custom Activity Type</string>
+    <string name="custom_activity_type_desc">Overrides the default activity type. Works for media and experimental RPC only</string>
     <string name="custom_activity_status">Custom Activity Status</string>
     <string name="custom_activity_status_desc">Overrides the default activity status</string>
     <string name="search">Search</string>
@@ -192,30 +192,6 @@
     <string name="app_detection_help_shortcuts_body">The copy icon next to an app\'s name lets you start from another app\'s customization instead of from scratch. The circular arrow resets that app back to default (you can undo right after). Once you have customized apps, a chip above the list lets you filter down to just those.</string>
     <string name="app_detection_help_timer_title">About the elapsed-timer toggle</string>
     <string name="app_detection_help_timer_body">Turning off "Show elapsed time" removes the running clock from that app\'s presence. This depends on how Discord\'s own client renders the update, so it may take a few seconds — or a Discord restart — to disappear on some devices.</string>
-    <string name="rpc_field_completion_hint">Type \'{{\' to insert a variable</string>
-    <string name="playback_state_playing">Playing</string>
-    <string name="playback_state_paused">Paused</string>
-    <string name="playback_state_stopped">Stopped</string>
-    <string name="completion_media_album">Album</string>
-    <string name="completion_media_playback_state">Playback State (Playing/Paused/Stopped)</string>
-    <string name="completion_media_position">Elapsed Time</string>
-    <string name="completion_media_duration">Total Duration</string>
-    <string name="completion_media_remaining">Time Remaining</string>
-    <string name="completion_media_title_urlencoded">Song/Video Title (for links)</string>
-    <string name="completion_media_artist_urlencoded">Main Artist (for links)</string>
-    <string name="completion_cover_art">Cover Art</string>
-    <string name="completion_app_icon">App Icon</string>
-    <string name="completion_playback_icon">Play/Pause Icon</string>
-    <string name="app_override_template_preview_hint">Preview uses a sample track — the real presence updates with whatever\'s actually playing.</string>
-    <string name="media_override_help_title">About Media RPC customization</string>
-    <string name="media_override_help_intro_title">What is this?</string>
-    <string name="media_override_help_intro_body">The pencil icon on each app lets you customize how that app\'s presence looks while it\'s playing something — on top of the toggles above, which only apply to every app the same way. Unlike App Detection, these fields are templates: type placeholders like {{media_title}} and they get replaced with the actual song/video every time the presence updates. Leave a field blank to keep the default from the toggles above.</string>
-    <string name="media_override_help_placeholders_title">Placeholders</string>
-    <string name="media_override_help_placeholders_body">Type \'{{\' in the Text tab\'s fields to see the full list: song/video title, artist, album, app name, playback state, elapsed/total/remaining time. Mix them freely with your own text, e.g. "{{media_artist}} — {{media_title}}".</string>
-    <string name="media_override_help_images_title">Images</string>
-    <string name="media_override_help_images_body">The Images tab also accepts three special placeholders instead of a URL: Cover Art, App Icon, and the Play/Pause Icon — pick them from the same \'{{\' menu. This lets you swap which image goes large vs. small, e.g. cover art large with the app icon small, or the other way around.</string>
-    <string name="media_override_help_search_button_title">Search-link buttons</string>
-    <string name="media_override_help_search_button_body">The Buttons tab\'s URL fields offer URL-safe placeholders for the title/artist. Paired with a search engine\'s URL format, this builds a button that always searches for whatever\'s currently playing — e.g. a "Search" button pointing at a search URL with {{media_title_urlencoded}} in it.</string>
     <string name="compact_mode">Compact Mode</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">Yes</string>

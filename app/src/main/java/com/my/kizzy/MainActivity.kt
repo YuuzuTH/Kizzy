@@ -24,6 +24,7 @@ import com.my.kizzy.preference.translate.AutoTranslateEpoch
 import com.my.kizzy.preference.translate.AutoTranslateResources
 import com.my.kizzy.ui.theme.KizzyTheme
 import com.my.kizzy.ui.theme.LocalDarkTheme
+import com.my.kizzy.ui.theme.LocalDynamicColorSwitch
 import com.my.kizzy.ui.theme.SettingsProvider
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
@@ -97,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                     KizzyTheme(
                         darkTheme = LocalDarkTheme.current.isDarkTheme(),
                         isHighContrastModeEnabled = LocalDarkTheme.current.isHighContrastModeEnabled,
+                        isDynamicColorEnabled = LocalDynamicColorSwitch.current,
                     ) {
                         Kizzy(
                             usageAccessStatus = usageAccessStatus,

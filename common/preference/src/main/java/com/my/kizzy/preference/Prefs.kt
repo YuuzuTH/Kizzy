@@ -158,7 +158,6 @@ object Prefs {
     const val MEDIA_RPC_HIDE_ON_PAUSE = "hide_on_pause"
     const val MEDIA_RPC_SHOW_PLAYBACK_STATE = "show_playback_state"
     const val MEDIA_RPC_SHOW_SONG_AS_TITLE = "show_song_as_title"
-    const val MEDIA_RPC_OVERRIDES = "media_rpc_overrides" //Json Map<packageName, AppRpcOverride> per-app presence template, same shape as APP_RPC_OVERRIDES but a separate store
 
     //Rpc Setting Preferences
     const val USE_RPC_BUTTONS = "use_saved_rpc_buttons"

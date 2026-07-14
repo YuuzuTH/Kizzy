@@ -50,6 +50,7 @@ import com.my.kizzy.feature_rpc_base.AppUtils
 import com.my.kizzy.feature_settings.language.Language
 import com.my.kizzy.feature_settings.rpc_settings.RpcSettings
 import com.my.kizzy.feature_settings.style.Appearance
+import com.my.kizzy.feature_settings.style.DarkThemePreferences
 import com.my.kizzy.feature_startup.StartUp
 import com.my.kizzy.navigation.Routes
 import com.my.kizzy.navigation.animatedComposable
@@ -171,11 +172,7 @@ internal fun ComponentActivity.Kizzy(
                     onBackPressed = { navController.popBackStack() },
                     state = viewModel.state.collectAsState().value,
                     hasNotificationAccess = notificationListenerAccess.value,
-                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled,
-                    onSetOverride = viewModel::setOverride,
-                    onClearOverride = viewModel::clearOverride,
-                    onClearAllOverrides = viewModel::clearAllOverrides,
-                    onUploadImage = viewModel::uploadImage,
+                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled
                 )
             }
             animatedComposable(Routes.PROFILE) {
@@ -216,7 +213,14 @@ internal fun ComponentActivity.Kizzy(
             animatedComposable(Routes.STYLE_AND_APPEARANCE) {
                 Appearance(onBackPressed = {
                     navController.popBackStack()
-                })
+                }) {
+                    navController.navigate(Routes.DARK_THEME)
+                }
+            }
+            animatedComposable(Routes.DARK_THEME) {
+                DarkThemePreferences {
+                    navController.popBackStack()
+                }
             }
             animatedComposable(Routes.RPC_SETTINGS) {
                 RpcSettings { navController.popBackStack() }

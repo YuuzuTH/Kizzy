@@ -1,290 +1,302 @@
+@file:Suppress("DEPRECATION")
+
 package com.my.kizzy.feature_settings.style
 
 /**
  * source: https://github.com/JunkFood02/Seal
  */
 
-import androidx.compose.foundation.BorderStroke
+import android.graphics.Color.parseColor
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BrightnessAuto
-import androidx.compose.material.icons.outlined.Celebration
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Contrast
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.my.kizzy.preference.DarkThemePreference.Companion.FOLLOW_SYSTEM
-import com.my.kizzy.preference.DarkThemePreference.Companion.OFF
-import com.my.kizzy.preference.DarkThemePreference.Companion.ON
-import com.my.kizzy.preference.modifyDarkThemePreference
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.HorizontalPagerIndicator
+import com.google.accompanist.pager.rememberPagerState
+import com.google.android.material.color.DynamicColors
 import com.my.kizzy.resources.R
+import com.kyant.monet.Hct
+import com.kyant.monet.LocalTonalPalettes
+import com.kyant.monet.PaletteStyle
+import com.kyant.monet.TonalPalettes
+import com.kyant.monet.TonalPalettes.Companion.toTonalPalettes
+import com.kyant.monet.a1
+import com.kyant.monet.a2
+import com.kyant.monet.a3
+import com.kyant.monet.n2
+import com.kyant.monet.toColor
+import com.my.kizzy.feature_settings.style.svg.DynamicSVGImage
+import com.my.kizzy.feature_settings.style.svg.PALETTE
+import com.my.kizzy.preference.DEFAULT_SEED_COLOR
+import com.my.kizzy.preference.Prefs
+import com.my.kizzy.preference.Prefs.CUSTOM_THEME_COLOR
+import com.my.kizzy.preference.modifyThemeSeedColor
+import com.my.kizzy.preference.palettesMap
+import com.my.kizzy.preference.switchDynamicColor
 import com.my.kizzy.ui.components.BackButton
-import com.my.kizzy.ui.components.Subtitle
+import com.my.kizzy.ui.components.SettingItem
+import com.my.kizzy.ui.components.dialog.TextFieldDialog
 import com.my.kizzy.ui.components.preference.PreferenceSwitch
 import com.my.kizzy.ui.theme.LocalDarkTheme
+import com.my.kizzy.ui.theme.LocalDynamicColorSwitch
+import com.my.kizzy.ui.theme.LocalPaletteStyleIndex
+import com.my.kizzy.ui.theme.LocalSeedColor
+import com.my.kizzy.ui.theme.autoDark
 
-// Simplified 2026-07-13: dropped the generic Material-You color/style picker
-// (8 unrelated preset hues, "dynamic color from wallpaper", freeform hex entry)
-// in favor of a short, fully-branded list — light/dark/system, the one Yuzu夕
-// twilight color, and a locked "seasonal themes" placeholder for later. Dynamic
-// color is retired at the theme-resolution level too (see ui/theme/Theme.kt),
-// not just hidden here, so a stale enabled flag from an old install can't
-// silently override the brand color with no way to turn it back off.
+val colorList = listOf(
+    Color(DEFAULT_SEED_COLOR),
+    Color.Blue,
+    Hct(60.0, 100.0, 70.0).toSrgb().toColor(),
+    Hct(125.0, 50.0, 60.0).toSrgb().toColor(),
+    Color.Cyan,
+    Color.Red,
+    Color.Yellow,
+    Color.Magenta
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Appearance(onBackPressed: () -> Unit) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        rememberTopAppBarState(),
-        canScroll = { true }
-    )
-    val darkThemePreference = LocalDarkTheme.current
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeTopAppBar(
-                title = { Text(text = stringResource(id = R.string.display)) },
-                navigationIcon = { BackButton { onBackPressed() } },
-                scrollBehavior = scrollBehavior
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxWidth()
-        ) {
-            ThemeModeCard(
-                title = stringResource(R.string.theme_light),
-                icon = Icons.Outlined.LightMode,
-                selected = darkThemePreference.darkThemeValue == OFF
-            ) { modifyDarkThemePreference(darkThemeValue = OFF) }
-            ThemeModeCard(
-                title = stringResource(R.string.theme_dark),
-                icon = Icons.Outlined.DarkMode,
-                selected = darkThemePreference.darkThemeValue == ON
-            ) { modifyDarkThemePreference(darkThemeValue = ON) }
-            ThemeModeCard(
-                title = stringResource(R.string.follow_system),
-                icon = Icons.Outlined.BrightnessAuto,
-                selected = darkThemePreference.darkThemeValue == FOLLOW_SYSTEM
-            ) { modifyDarkThemePreference(darkThemeValue = FOLLOW_SYSTEM) }
+fun Appearance(
+    onBackPressed: () -> Unit, navigateToDarkTheme: () -> Unit
+) {
 
-            Subtitle(text = stringResource(R.string.advance_settings))
-            PreferenceSwitch(
-                title = stringResource(R.string.amoled),
-                icon = Icons.Outlined.Contrast,
-                isChecked = darkThemePreference.isHighContrastModeEnabled,
-                onClick = {
-                    modifyDarkThemePreference(
-                        isHighContrastModeEnabled = !darkThemePreference.isHighContrastModeEnabled
+    Scaffold(topBar = {
+        LargeTopAppBar(title = {
+            Text(
+                text = stringResource(id = R.string.display),
+                style = MaterialTheme.typography.headlineLarge
+            )
+        }, navigationIcon = {
+            BackButton {
+                onBackPressed()
+            }
+        })
+    }) {
+        Column(
+            Modifier.padding(it),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .aspectRatio(1.38f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                        .clickable { },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DynamicSVGImage(
+                        modifier = Modifier.padding(60.dp),
+                        contentDescription = "palette",
+                        svgString = PALETTE
                     )
                 }
-            )
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+                val pagerState = rememberPagerState(initialPage = colorList.indexOf(Color(
+                    LocalSeedColor.current))
+                        .run { if (equals(-1)) 1 else this })
+                HorizontalPager(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clearAndSetSemantics { }, state = pagerState,
+                    count = colorList.size, contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Row {
+                        ColorButtons(colorList[it],last = it == colorList.lastIndex)
+                    }
+                }
+                HorizontalPagerIndicator(
+                    pagerState = pagerState,
+                    pageCount = colorList.size,
+                    modifier = Modifier
+                        .clearAndSetSemantics { }
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 12.dp),
+                    activeColor = MaterialTheme.colorScheme.primary,
+                    inactiveColor = MaterialTheme.colorScheme.outlineVariant,
+                    indicatorHeight = 6.dp,
+                    indicatorWidth = 6.dp
+                )
+            }
+            if (DynamicColors.isDynamicColorAvailable()) {
+                PreferenceSwitch(title = stringResource(id = R.string.dynamic_color),
+                    description = stringResource(
+                        id = R.string.dynamic_color_desc
+                    ),
+                    icon = Icons.Outlined.Palette,
+                    isChecked = LocalDynamicColorSwitch.current,
+                    onClick = {
+                        switchDynamicColor()
+                    })
+            }
 
-            BrandThemeCard(
-                title = stringResource(R.string.theme_brand_title),
-                description = stringResource(R.string.theme_brand_desc)
-            )
-            SeasonalThemeCard(
-                title = stringResource(R.string.theme_seasonal_title),
-                description = stringResource(R.string.theme_seasonal_desc)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
+            SettingItem(
+                title = stringResource(id = R.string.dark_theme),
+                description = LocalDarkTheme.current.getDarkThemeDesc(),
+                icon = Icons.Outlined.DarkMode,
+            ) { navigateToDarkTheme() }
         }
     }
 }
 
 @Composable
-private fun ThemeModeCard(
-    title: String,
-    icon: ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
+fun RowScope.ColorButtons(color: Color, last: Boolean = false) {
+    palettesMap.forEach {
+        ColorButton(color = color, index = it.key, tonalStyle = it.value, custom = it.key == 3 && last)
+    }
+}
+
+@Composable
+fun RowScope.ColorButton(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Green,
+    index: Int = 0,
+    tonalStyle: PaletteStyle = PaletteStyle.TonalSpot,
+    custom: Boolean = false
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable { onClick() },
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surfaceVariant,
+    var showDialog by remember { mutableStateOf(false) }
+    var customColorValue by remember { mutableStateOf(Prefs[CUSTOM_THEME_COLOR, ""]) }
+    val tonalPalettes =
+        if(custom)
+            customColorValue.color.toTonalPalettes(tonalStyle)
+        else
+            color.toTonalPalettes(tonalStyle)
+    val isSelect =
+        !LocalDynamicColorSwitch.current && LocalSeedColor.current == color.toArgb() && LocalPaletteStyleIndex.current == index
+
+    TextFieldDialog(visible = showDialog,
+        title = stringResource(R.string.primary_color),
+        icon = Icons.Outlined.Palette,
+        value = customColorValue,
+        placeholder = stringResource(R.string.primary_color_hint),
+        onValueChange = {
+            customColorValue = it
+        },
+        onDismissRequest = {
+            showDialog = false
+        },
+        onConfirm = { hexString ->
+                customColorValue = hexString
+                switchDynamicColor(enabled = false)
+                Prefs[CUSTOM_THEME_COLOR] = hexString
+                modifyThemeSeedColor(customColorValue.color.toArgb(), index)
+                showDialog = false
+        })
+    ColorButtonImpl(
+        modifier = modifier,
+        tonalPalettes = tonalPalettes,
+        cardColor = 95.autoDark(LocalDarkTheme.current.isDarkTheme()).n2,
+        isSelected = { isSelect }
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            )
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp)
-                )
+        if (custom) {
+            showDialog = true
+        } else {
+            switchDynamicColor(enabled = false)
+            modifyThemeSeedColor(color.toArgb(), index)
+        }
+    }
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RowScope.ColorButtonImpl(
+    modifier: Modifier = Modifier,
+    isSelected: () -> Boolean = { false },
+    tonalPalettes: TonalPalettes,
+    cardColor: Color,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    onClick: () -> Unit = {}
+) {
+
+    val containerSize by animateDpAsState(targetValue = if (isSelected.invoke()) 28.dp else 0.dp,
+        label = "containerSizeAnimation"
+    )
+    val iconSize by animateDpAsState(targetValue = if (isSelected.invoke()) 16.dp else 0.dp,
+        label = "iconSizeAnimation"
+    )
+
+    Surface(modifier = modifier
+        .padding(4.dp)
+        .sizeIn(maxHeight = 80.dp, maxWidth = 80.dp, minHeight = 64.dp, minWidth = 64.dp)
+        .weight(1f, false)
+        .aspectRatio(1f),
+        shape = RoundedCornerShape(16.dp),
+        color = cardColor,
+        onClick = { onClick() }) {
+        CompositionLocalProvider(LocalTonalPalettes provides tonalPalettes) {
+            val color1 = 80.a1
+            val color2 = 90.a2
+            val color3 = 60.a3
+            Box(Modifier.fillMaxSize()) {
+                Box(
+                    modifier = modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .drawBehind { drawCircle(color1) }
+                        .align(Alignment.Center)
+                ) {
+                    Surface(
+                        color = color2,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .size(24.dp)
+                    ) {}
+                    Surface(
+                        color = color3,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(24.dp)
+                    ) {}
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .clip(CircleShape)
+                            .size(containerSize)
+                            .drawBehind { drawCircle(containerColor) },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(iconSize)
+                                .align(Alignment.Center),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                }
             }
         }
     }
 }
 
-@Composable
-private fun BrandThemeCard(title: String, description: String) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(20.dp)),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "夕",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.padding(end = 16.dp)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-            Icon(
-                imageVector = Icons.Outlined.Check,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+val String.color
+    get() = try {
+        Color(parseColor(this))
+    } catch (ex: Exception) {
+        Color.Transparent
     }
-}
-
-@Composable
-private fun SeasonalThemeCard(title: String, description: String) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(20.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Celebration,
-                contentDescription = title,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(11.dp),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Text(
-                    text = stringResource(R.string.coming_soon),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                )
-            }
-        }
-    }
-}
-
-@Preview
-@Composable
-private fun AppearancePreview() {
-    Appearance(onBackPressed = {})
-}

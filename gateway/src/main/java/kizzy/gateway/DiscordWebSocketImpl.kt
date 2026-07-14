@@ -3,7 +3,6 @@ package kizzy.gateway
 import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.interfaces.NoOpLogger
 import io.ktor.client.*
-import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kizzy.gateway.entities.Heartbeat
@@ -50,97 +49,27 @@ open class DiscordWebSocketImpl(
     private var resumeGatewayUrl: String? = null
     private var heartbeatJob: Job? = null
     private var connected = false
-    // True from the moment a connect attempt starts until it terminally resolves (deliberate
-    // close or a fatal/unretryable close) — covers the whole retry backoff chain, not just the
-    // initial handshake. Guards connect() against a caller (KizzyRPC.connectToWebSocket, called
-    // on every fresh build()) invoking it again while a session is already live or a reconnect
-    // is already pending: without this, overlapping connect() calls each bump connectEpoch and
-    // open their own websocket, racing each other and producing the reconnect storm seen in
-    // 2026-07-13 field logs (epoch jumping 3→4→5 within ~3s, presence flickering/going stale).
-    private var connecting = false
     private var deliberateClose = false
     private var reconnectAttempts = 0
     private var connectEpoch = 0
     private var lastPresence: Presence? = null
-    // Deliberately never closed/recreated (tried in v6.13.2.000, reverted in v6.13.2.002): calling
-    // client.close() in close() tears down the whole underlying engine, which aborts whatever
-    // connect() attempt happens to be using it at that exact moment — including a legitimate one
-    // racing a spurious close() from Media RPC's blank-track detection. Field evidence showed
-    // that as gateway close code 1006 ("closed without close frame") on nearly every reconnect,
-    // and the connection never reaching READY again. The one long-lived client survives every
-    // close()/connect() cycle on this object instead, same as the original 2023 code.
-    private val client: HttpClient = HttpClient(CIO) {
+    private var client: HttpClient = HttpClient {
         install(WebSockets)
-        // CIO's default requestTimeout is 15s, applied to the whole session including a
-        // WebSocket — fine for a normal HTTP request, fatal here: this account's READY
-        // payload (guild list etc., a large account active since 2018) can take longer than
-        // that to fully arrive on a mobile connection, so the engine kills the connection with
-        // an abrupt 1006 right as it's waiting on READY, on essentially every fresh IDENTIFY.
-        // A long-lived gateway session has no natural request boundary to time out against.
-        engine { requestTimeout = 0 }
     }
     private val json = Json{
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    // Stored (not recomputed) so every launch{} in this class shares one real parent — a `get()`
-    // that built `SupervisorJob() + Dispatchers.Default` fresh on every access (the original
-    // upstream code) meant `this.cancel()` in close() cancelled a brand-new, childless job every
-    // time instead of the job any coroutine was actually launched under, and `isActive` always
-    // read a freshly-minted (hence always-active) job regardless of whether close() had run.
-    // Net effect: close() never actually stopped the gateway receive loop or any reconnect
-    // backoff in flight — it just kept running in the background, still mutating the shared
-    // `websocket`/`connected`/`sessionId` fields, racing whatever connect() started next. Both
-    // Media RPC and App Detection close()+rebuild on every pause/app-switch, so this is the
-    // gateway instability (never showing up / dropping silently while still "detecting") that
-    // the 2026-07-13 connecting-flag guard reduced the frequency of but didn't fix at the root.
-    // A cancelled Job can't launch new children, so it's replaced with a fresh one in connect()
-    // rather than here — that keeps isActive meaningfully false in the gap between close() and
-    // the next connect(), instead of flipping back to "active" immediately.
-    private var supervisorJob: CompletableJob = SupervisorJob()
     override val coroutineContext: CoroutineContext
-        get() = supervisorJob + Dispatchers.Default
-
-    // Guards every read-then-write of connected/connecting/deliberateClose/connectEpoch/
-    // supervisorJob together. close() and connect() are called from unrelated callers
-    // (App Detection's app-switch thread vs. Media RPC's playback-callback thread) with no
-    // other coordination — without a shared lock, close() could run its teardown between
-    // connect()'s "not already connecting" check and connectInternal() actually setting
-    // connecting=true, cancelling a job that hadn't been launched under yet and leaving
-    // connecting permanently stuck true (nothing else ever resets it back to false).
-    private val stateLock = Any()
+        get() = SupervisorJob() + Dispatchers.Default
 
     override suspend fun connect() {
-        val epoch = synchronized(stateLock) {
-            // Already connected, or a connect/retry chain is already in flight — a redundant
-            // call here (e.g. KizzyRPC.connectToWebSocket() firing again from a second build()
-            // before isRpcRunning() catches up) must no-op instead of racing the existing
-            // session/backoff.
-            if (connected || connecting) return@synchronized null
-            // A prior close() cancelled the old job for good — a cancelled Job can never launch
-            // new children, so a fresh one is needed before this connect can start anything.
-            if (!supervisorJob.isActive) supervisorJob = SupervisorJob()
-            connecting = true
-            // A deliberate close is only sticky until the next explicit connect;
-            // the epoch invalidates any reconnect attempt still sleeping in backoff
-            // so two connect loops can never run at once.
-            deliberateClose = false
-            ++connectEpoch
-        } ?: return
-        launchConnectAttempt(epoch)
-    }
-
-    private suspend fun connectInternal() {
-        val epoch = synchronized(stateLock) {
-            connecting = true
-            deliberateClose = false
-            ++connectEpoch
-        }
-        launchConnectAttempt(epoch)
-    }
-
-    private fun launchConnectAttempt(epoch: Int) {
+        // A deliberate close is only sticky until the next explicit connect;
+        // the epoch invalidates any reconnect attempt still sleeping in backoff
+        // so two connect loops can never run at once.
+        deliberateClose = false
+        val epoch = ++connectEpoch
         onGatewayEvent("gateway_connect epoch=$epoch resuming=${resumeGatewayUrl != null}")
         launch {
             try {
@@ -180,7 +109,7 @@ open class DiscordWebSocketImpl(
             code == 4000 -> {
                 onGatewayEvent("gateway_resume_close code=4000")
                 delay(200.milliseconds)
-                connectInternal()
+                connect()
             }
             // 4004 = auth failed, 4010..4014 = fatal (invalid intents etc.) — retrying is pointless
             code == 4004 || (code != null && code in 4010..4014) -> {
@@ -212,7 +141,7 @@ open class DiscordWebSocketImpl(
         logger.w("Gateway","Connection lost — reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
         onGatewayEvent("gateway_reconnect_scheduled attempt=$reconnectAttempts delayMs=$delayMs freshIdentify=${reconnectAttempts >= 3}")
         delay(delayMs)
-        if (!deliberateClose && epoch == connectEpoch) connectInternal()
+        if (!deliberateClose && epoch == connectEpoch) connect()
     }
 
     private suspend fun onMessage(jsonString: String) {
@@ -356,21 +285,13 @@ open class DiscordWebSocketImpl(
 
     override fun close() {
         onGatewayEvent("gateway_close deliberate=true wasConnected=$connected")
-        synchronized(stateLock) {
-            deliberateClose = true
-            connecting = false
-            connectEpoch++
-            // Cancels the actual job every launch{} in this class runs under (see the field's
-            // kdoc) — the gateway receive loop and any reconnect backoff still in flight both
-            // die here instead of lingering in the background to race the next connect(). Paired
-            // with connect()'s guard check in the same lock so close() can never land between
-            // that check and connecting being set true, which used to leave connecting stuck.
-            supervisorJob.cancel()
-        }
+        deliberateClose = true
+        connectEpoch++
         reconnectAttempts = 0
         lastPresence = null
         heartbeatJob?.cancel()
         heartbeatJob = null
+        this.cancel()
         resumeGatewayUrl = null
         sessionId = null
         connected = false

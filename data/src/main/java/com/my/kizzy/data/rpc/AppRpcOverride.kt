@@ -26,11 +26,7 @@ import kotlinx.serialization.Serializable
  * @property smallImageUrl Small image overlaid on the large one (same URL rules as [imageUrl]).
  * @property smallText     Tooltip for the small image.
  * @property activityType  Discord activity verb: 0 Playing · 1 Streaming · 2 Listening ·
- *                         3 Watching · 5 Competing. null ⇒ inherit the mode's own default
- *                         (App Detection: always Playing; Media RPC: the "Custom Activity Type"
- *                         Settings toggle). 0 is a real, distinct choice ("explicitly Playing")
- *                         from null ("unset") since the editor added a separate "Default" chip —
- *                         they used to be indistinguishable when the UI could only ever save 0.
+ *                         3 Watching · 5 Competing. null ⇒ the App-Detection default (Playing).
  * @property streamUrl     Twitch/YouTube URL — only meaningful together with [activityType] 1.
  * @property button1Text   Label of the first presence button. Blank ⇒ no button.
  * @property button1Url    URL the first button opens.
@@ -69,11 +65,8 @@ data class AppRpcOverride(
 ) {
     /**
      * True when the override carries no meaningful customization, so it can be dropped from
-     * storage instead of persisting an all-default entry. [showTimestamps] only counts as
-     * customization when it differs from the default (timer on). [activityType] counts as
-     * customization whenever it's non-null — including 0, now that the editor can save an
-     * explicit "Playing" distinct from "Default" (see its doc comment above); treating 0 as
-     * empty would silently drop that explicit choice on save.
+     * storage instead of persisting an all-default entry. [activityType]/[showTimestamps] only
+     * count as customization when they differ from the App-Detection defaults (Playing + timer on).
      */
     val isEmpty: Boolean
         get() = name.isNullOrBlank() &&
@@ -88,7 +81,7 @@ data class AppRpcOverride(
             button1Url.isNullOrBlank() &&
             button2Text.isNullOrBlank() &&
             button2Url.isNullOrBlank() &&
-            activityType == null &&
+            (activityType == null || activityType == 0) &&
             (showTimestamps == null || showTimestamps) &&
             status.isNullOrBlank() &&
             partyCurrentSize == null &&

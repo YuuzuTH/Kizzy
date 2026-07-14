@@ -31,12 +31,16 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.SmartButton
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
@@ -83,6 +87,12 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
     }
     var customActivityStatus by remember {
         mutableStateOf(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
+    }
+    var customActivityType by remember {
+        mutableStateOf(Prefs[Prefs.CUSTOM_ACTIVITY_TYPE, 0].toString())
+    }
+    var showActivityTypeDialog by remember {
+        mutableStateOf(false)
     }
     var showActivityStatusDialog by remember {
         mutableStateOf(false)
@@ -149,6 +159,16 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                         showButtonsConfigDialog = true
                     }
                 }
+            }
+            item {
+                SettingItem(
+                    title = stringResource(id = R.string.custom_activity_type),
+                    description = stringResource(id = R.string.custom_activity_type_desc),
+                    icon = Icons.Default.Code
+                ) {
+                    showActivityTypeDialog = true
+                }
+
             }
             item {
                 SettingItem(
@@ -324,6 +344,70 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                         }
                     }
                 })
+        }
+
+        if (showActivityTypeDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showActivityTypeDialog = false
+                },
+                text = {
+                    var activityTypeisExpanded by remember {
+                        mutableStateOf(false)
+                    }
+                    val icon =
+                        if (activityTypeisExpanded) {
+                            Icons.Default.KeyboardArrowUp
+                        } else {
+                            Icons.Default.KeyboardArrowDown
+                        }
+                    RpcField(
+                        value = customActivityType,
+                        label = R.string.activity_type,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        trailingIcon = {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.clickable {
+                                    activityTypeisExpanded = !activityTypeisExpanded
+                                })
+                        }) {
+                        customActivityType = it
+                    }
+                    DropdownMenu(
+                        expanded = activityTypeisExpanded, onDismissRequest = {
+                            activityTypeisExpanded = !activityTypeisExpanded
+                        }, modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Constants.ACTIVITY_TYPE.forEach { (label, value) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(text = label)
+                                },
+                                onClick = {
+                                    customActivityType = value.toString()
+                                    activityTypeisExpanded = false
+                                },
+                            )
+                        }
+                    }
+
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        // Guard against an empty/non-numeric field (the input is a free
+                        // text field) — toInt() would throw NumberFormatException and crash.
+                        val parsedType = customActivityType.toIntOrNull()
+                        if (parsedType != null && parsedType in 0..5) {
+                            Prefs[Prefs.CUSTOM_ACTIVITY_TYPE] = parsedType
+                            showActivityTypeDialog = false
+                        }
+                    }) {
+                        Text(text = stringResource(R.string.save))
+                    }
+                }
+            )
         }
 
         if (showActivityStatusDialog) {

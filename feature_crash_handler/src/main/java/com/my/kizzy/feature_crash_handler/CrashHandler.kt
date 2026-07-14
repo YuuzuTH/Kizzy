@@ -21,6 +21,7 @@ import com.developer.crashx.CrashActivity
 import com.my.kizzy.data.remote.LogWebhookReporter
 import com.my.kizzy.ui.theme.KizzyTheme
 import com.my.kizzy.ui.theme.LocalDarkTheme
+import com.my.kizzy.ui.theme.LocalDynamicColorSwitch
 
 class CrashHandler : ComponentActivity() {
 
@@ -33,6 +34,7 @@ class CrashHandler : ComponentActivity() {
             KizzyTheme(
                 darkTheme = LocalDarkTheme.current.isDarkTheme(),
                 isHighContrastModeEnabled = LocalDarkTheme.current.isHighContrastModeEnabled,
+                isDynamicColorEnabled = LocalDynamicColorSwitch.current,
             ){
                 CrashScreen(trace = crashLog)
             }
