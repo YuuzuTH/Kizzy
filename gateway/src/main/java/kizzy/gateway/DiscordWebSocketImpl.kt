@@ -61,7 +61,14 @@ open class DiscordWebSocketImpl(
     private var reconnectAttempts = 0
     private var connectEpoch = 0
     private var lastPresence: Presence? = null
-    private var client: HttpClient = HttpClient {
+    // Deliberately never closed/recreated (tried in v6.13.2.000, reverted in v6.13.2.002): calling
+    // client.close() in close() tears down the whole underlying engine, which aborts whatever
+    // connect() attempt happens to be using it at that exact moment — including a legitimate one
+    // racing a spurious close() from Media RPC's blank-track detection. Field evidence showed
+    // that as gateway close code 1006 ("closed without close frame") on nearly every reconnect,
+    // and the connection never reaching READY again. The one long-lived client survives every
+    // close()/connect() cycle on this object instead, same as the original 2023 code.
+    private val client: HttpClient = HttpClient {
         install(WebSockets)
     }
     private val json = Json{
@@ -88,7 +95,7 @@ open class DiscordWebSocketImpl(
         get() = supervisorJob + Dispatchers.Default
 
     // Guards every read-then-write of connected/connecting/deliberateClose/connectEpoch/
-    // supervisorJob/client together. close() and connect() are called from unrelated callers
+    // supervisorJob together. close() and connect() are called from unrelated callers
     // (App Detection's app-switch thread vs. Media RPC's playback-callback thread) with no
     // other coordination — without a shared lock, close() could run its teardown between
     // connect()'s "not already connecting" check and connectInternal() actually setting
@@ -104,12 +111,8 @@ open class DiscordWebSocketImpl(
             // session/backoff.
             if (connected || connecting) return@synchronized null
             // A prior close() cancelled the old job for good — a cancelled Job can never launch
-            // new children, so both it and the HttpClient built on top of it need replacing
-            // before this connect can start anything.
-            if (!supervisorJob.isActive) {
-                supervisorJob = SupervisorJob()
-                client = HttpClient { install(WebSockets) }
-            }
+            // new children, so a fresh one is needed before this connect can start anything.
+            if (!supervisorJob.isActive) supervisorJob = SupervisorJob()
             connecting = true
             // A deliberate close is only sticky until the next explicit connect;
             // the epoch invalidates any reconnect attempt still sleeping in backoff
@@ -355,13 +358,6 @@ open class DiscordWebSocketImpl(
             // with connect()'s guard check in the same lock so close() can never land between
             // that check and connecting being set true, which used to leave connecting stuck.
             supervisorJob.cancel()
-            // Built fresh alongside supervisorJob on the next connect() — closing it now instead
-            // of leaving it for the GC releases its engine/selector threads immediately rather
-            // than on every pause/app-switch's close()+rebuild cycle, not just app shutdown.
-            // runCatching so a throw here can't skip cancelling the lock (see close()'s own
-            // comment on the websocket?.close() below for why this class never lets a teardown
-            // step's exception skip the rest of teardown).
-            runCatching { client.close() }
         }
         reconnectAttempts = 0
         lastPresence = null
