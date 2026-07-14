@@ -26,6 +26,7 @@ import com.my.kizzy.data.rpc.RpcButton
 import com.my.kizzy.data.rpc.Timestamps
 import com.my.kizzy.data.rpc.RpcImage
 import com.my.kizzy.data.rpc.TemplateProcessor
+import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.preference.Prefs
 import com.my.kizzy.resources.R
@@ -46,7 +47,8 @@ data class MediaPresence(
 class GetCurrentPlayingMedia @Inject constructor(
     private val metadataResolver: MetadataResolver,
     private val componentName: ComponentName,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val logger: Logger,
 ) {
     object Assets {
         val PLAY = "app-assets/$APPLICATION_ID/1300361266212241430.png";
@@ -81,11 +83,25 @@ class GetCurrentPlayingMedia @Inject constructor(
         var timestamps: Timestamps? = null
         val mediaSessionManager =
             context.getSystemService(Service.MEDIA_SESSION_SERVICE) as MediaSessionManager
-        val sessions = mediaSessionManager.getActiveSessions(componentName)
+        // Temporary diagnostic instrumentation (remove once the "detects nothing" field report
+        // is understood) — getActiveSessions() throws SecurityException if notification listener
+        // access was revoked (Android/some OEMs do this silently on app update), which would
+        // otherwise surface as nothing playing with zero explanation in the debug log.
+        val sessions = try {
+            mediaSessionManager.getActiveSessions(componentName)
+        } catch (e: SecurityException) {
+            logger.e("MediaRPC", "getActiveSessions() denied: ${e.message} — notification listener access may have been revoked")
+            return MediaPresence(rpc = CommonRpc(), enableTimestamps = false)
+        }
+        logger.d(
+            "MediaRPC",
+            "invoke(): ${sessions.size} active session(s): ${sessions.joinToString { it.packageName }}"
+        )
         for (mediaController in sessions) {
             val pkg = mediaController.packageName
             // If the app is not enabled for media rpc, skip it
             if (!Prefs.isMediaAppEnabled(pkg)) {
+                logger.d("MediaRPC", "invoke(): $pkg not enabled for Media RPC, skipping")
                 continue
             }
 
@@ -94,11 +110,16 @@ class GetCurrentPlayingMedia @Inject constructor(
             val isPaused = playbackState == PlaybackState.STATE_PAUSED ||
                 playbackState == PlaybackState.STATE_STOPPED
             if (Prefs[Prefs.MEDIA_RPC_HIDE_ON_PAUSE, false] && isPaused) {
+                logger.d("MediaRPC", "invoke(): $pkg paused and hide-on-pause is on, skipping")
                 continue
             }
 
             val metadata = mediaController.metadata
             val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+            logger.d(
+                "MediaRPC",
+                "invoke(): $pkg enabled, playbackState=$playbackState, metadata=${if (metadata == null) "null" else "present"}, title=${if (title == null) "null" else "present"}"
+            )
             val appName = AppUtils.getAppName(pkg)
             val author =
                 if (Prefs[Prefs.MEDIA_RPC_ARTIST_NAME, false])
