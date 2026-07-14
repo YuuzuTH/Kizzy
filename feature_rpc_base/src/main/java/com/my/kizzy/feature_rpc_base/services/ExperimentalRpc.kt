@@ -532,15 +532,18 @@ class ExperimentalRpc : Service() {
 
             scope.coroutineContext.cancelChildren()
             scope.launch {
+                // Same grace delay in both branches, for the same reason — a player (observed
+                // with YT Music) commonly destroys its MediaSession and creates a fresh one for
+                // the next track rather than reusing it. The useAppsRpc branch used to skip this
+                // and fall back to app-detection presence immediately, which meant every track
+                // change flashed the wrong presence (whatever app happens to be foreground) for
+                // up to ~1.5s until activeSessionsListener's own debounce re-registered the real
+                // session and cancelled this coroutine — the same class of bug as
+                // updatePresence(null,...) below misreading a momentary gap as "nothing playing".
+                delay(1000)
                 if (useAppsRpc) {
                     startAppDetectionCoroutine()
                 } else {
-                    // Same grace delay as handleMediaUpdate() above, for the same reason — a
-                    // player (observed with YT Music) commonly destroys its MediaSession and
-                    // creates a fresh one for the next track rather than reusing it. Without
-                    // this, updatePresence(null, null, null) here reads as "nothing playing"
-                    // mid-transition and closes the RPC over what's really just a momentary gap.
-                    delay(1000)
                     updatePresence(appInfo = null, richMediaInfo = null, rawMediaMetadata = null)
                 }
             }
