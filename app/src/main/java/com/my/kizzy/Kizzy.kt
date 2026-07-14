@@ -50,7 +50,6 @@ import com.my.kizzy.feature_rpc_base.AppUtils
 import com.my.kizzy.feature_settings.language.Language
 import com.my.kizzy.feature_settings.rpc_settings.RpcSettings
 import com.my.kizzy.feature_settings.style.Appearance
-import com.my.kizzy.feature_settings.style.DarkThemePreferences
 import com.my.kizzy.feature_startup.StartUp
 import com.my.kizzy.navigation.Routes
 import com.my.kizzy.navigation.animatedComposable
@@ -93,14 +92,15 @@ internal fun ComponentActivity.Kizzy(
                     })
             }
             animatedComposable(Routes.HOME) {
+                // Cached last-known release (may be stale) — lets a manual "check for
+                // updates" tap skip a network round-trip when we already know a newer
+                // version exists. The toolbar badge itself is driven independently, from
+                // Prefs.PENDING_UPDATE_TAG, inside Home() (see Home.kt).
                 val release = Prefs.getSavedLatestRelease()
                 val user = Prefs.getUser()
                 val viewModel by viewModels<HomeScreenViewModel>()
                 val state = viewModel.aboutScreenState.collectAsState().value
-                val showBadge = release
-                    ?.toVersion()
-                    ?.whetherNeedUpdate(BuildConfig.VERSION_NAME.toVersion())
-                    ?: false
+                val downloadState = viewModel.downloadState.collectAsState().value
                 Home(
                     state = state,
                     checkForUpdates = {
@@ -110,7 +110,13 @@ internal fun ComponentActivity.Kizzy(
                             viewModel.getLatestUpdate()
                         }
                     },
-                    showBadge = showBadge,
+                    forceRefreshUpdates = {
+                        viewModel.getLatestUpdate()
+                    },
+                    downloadState = downloadState,
+                    onDownloadUpdate = { url, versionName ->
+                        viewModel.downloadUpdate(url, versionName)
+                    },
                     features = homeFeaturesProvider(
                         navigateTo = { navController.navigate(it) },
                         hasUsageAccess = usageAccessStatus,
@@ -145,6 +151,10 @@ internal fun ComponentActivity.Kizzy(
                     hasUsageAccess = usageAccessStatus.value,
                     state = viewModel.state.collectAsState().value,
                     updateAppEnabled = viewModel::updateAppEnabled,
+                    onSetOverride = viewModel::setOverride,
+                    onClearOverride = viewModel::clearOverride,
+                    onClearAllOverrides = viewModel::clearAllOverrides,
+                    onUploadImage = viewModel::uploadImage,
                 )
             }
             animatedComposable(Routes.CUSTOM_RPC) {
@@ -161,7 +171,11 @@ internal fun ComponentActivity.Kizzy(
                     onBackPressed = { navController.popBackStack() },
                     state = viewModel.state.collectAsState().value,
                     hasNotificationAccess = notificationListenerAccess.value,
-                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled
+                    updateMediaAppEnabled = viewModel::updateMediaAppEnabled,
+                    onSetOverride = viewModel::setOverride,
+                    onClearOverride = viewModel::clearOverride,
+                    onClearAllOverrides = viewModel::clearAllOverrides,
+                    onUploadImage = viewModel::uploadImage,
                 )
             }
             animatedComposable(Routes.PROFILE) {
@@ -202,14 +216,7 @@ internal fun ComponentActivity.Kizzy(
             animatedComposable(Routes.STYLE_AND_APPEARANCE) {
                 Appearance(onBackPressed = {
                     navController.popBackStack()
-                }) {
-                    navController.navigate(Routes.DARK_THEME)
-                }
-            }
-            animatedComposable(Routes.DARK_THEME) {
-                DarkThemePreferences {
-                    navController.popBackStack()
-                }
+                })
             }
             animatedComposable(Routes.RPC_SETTINGS) {
                 RpcSettings { navController.popBackStack() }

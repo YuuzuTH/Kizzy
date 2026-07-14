@@ -20,8 +20,12 @@ android {
     }
     buildTypes {
         release {
-            isShrinkResources = true
-            isMinifyEnabled = true
+            // Minification (R8) was stripping kotlinx.serialization serializers used by
+            // the RPC gateway and detection loops, which silently broke app/media
+            // detection and froze the app on launch in release builds. Disabled until
+            // the keep rules in proguard-rules.pro are verified against a minified build.
+            isShrinkResources = false
+            isMinifyEnabled = false
         }
     }
 
@@ -39,6 +43,7 @@ android {
 }
 dependencies {
     implementation (projects.domain)
+    implementation (projects.data)
     implementation (projects.theme)
     implementation (projects.featureStartup)
     implementation (projects.featureCrashHandler)

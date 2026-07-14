@@ -13,6 +13,14 @@ android {
         buildConfigFieldFromGradleProperty("DISCORD_API_BASE_URL","DISCORD_API_URL")
         buildConfigFieldFromGradleProperty("GITHUB_API_BASE_URL","GITHUB_API_URL")
         buildConfigFieldFromGradleProperty("IMGUR_API_BASE_URL", "IMGUR_API_URL")
+        // Discord webhook URL for the in-app log reporter (see LogWebhookReporter).
+        // Read from an env var at build time, never committed — empty on forks/local
+        // builds means the feature just no-ops instead of failing the build.
+        buildConfigField(
+            "String",
+            "LOG_WEBHOOK_URL",
+            "\"${System.getenv("KIZZY_LOG_WEBHOOK") ?: ""}\""
+        )
     }
 }
 

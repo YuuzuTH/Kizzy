@@ -2,8 +2,8 @@
 # project level
 gradle = "8.13.2"
 kotlin = "1.9.23"
-version-name = "6.2"
-version-code ="14"
+version-name = "6.13.2.008"
+version-code ="72"
 
 # app level
 accompanist = "0.31.0-alpha"
@@ -29,6 +29,7 @@ androidx-test-ext-junit = "1.2.1"
 espresso-core = "3.6.1"
 javax = "1"
 kotlinx-serialization-json = "1.6.3"
+mlkit-translate = "17.0.3"
 
 [libraries]
 
@@ -78,6 +79,11 @@ ktor-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "kt
 ktor-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-kotlinx-serialization = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+# Server-side, testImplementation only (gateway module tests) — spins up a real local
+# WebSocket endpoint that fakes just enough of the Discord gateway handshake to drive
+# DiscordWebSocketImpl through its real network stack instead of a hand-rolled fake.
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
 
 # Third-party libraries
 blankj-utilcodex = { module = "com.blankj:utilcodex", version.ref = "blankj-utilcodex" }
@@ -92,6 +98,9 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 
 # KotlinX
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+
+# ML Kit (on-device auto-translate for languages we don't ship static strings for)
+mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkit-translate" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "gradle" }

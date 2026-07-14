@@ -9,6 +9,8 @@ android {
 
 dependencies {
     implementation (projects.theme)
+    implementation (projects.domain)
+    implementation (projects.data)
     implementation (libs.material3)
     implementation (projects.color)
     implementation (libs.android.svg)
@@ -16,4 +18,5 @@ dependencies {
     implementation (projects.common.resources)
     implementation (libs.material.icons.extended)
     implementation (libs.blankj.utilcodex)
+    implementation (libs.activity.compose)
 }

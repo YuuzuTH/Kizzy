@@ -144,6 +144,7 @@ fun LogScreen(viewModel: LogsViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolBar(viewModel: LogsViewModel) {
+    val ctx = LocalContext.current
     var menuClicked by remember {
         mutableStateOf(false)
     }
@@ -228,6 +229,23 @@ fun ToolBar(viewModel: LogsViewModel) {
                         },
                         onClick = {
                             viewModel.clearLogs()
+                            menuClicked = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(R.string.send_debug_log),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        },
+                        onClick = {
+                            viewModel.sendDebugLog()
+                            Toast.makeText(
+                                ctx,
+                                ctx.getString(R.string.debug_log_sent),
+                                Toast.LENGTH_SHORT
+                            ).show()
                             menuClicked = false
                         }
                     )

@@ -54,6 +54,34 @@ class KizzyRPC(
         discordWebSocket.close()
     }
 
+    /**
+     * Reset every builder field back to its default so a subsequent [build] starts clean.
+     * The same KizzyRPC instance is reused across [build] calls within a service (App
+     * Detection rebuilds on each app switch after a disable/close), and the button setters
+     * *append* — without this, buttons accumulate and per-app fields (details, images,
+     * timestamps, stream url…) leak from the previously built app into the next one.
+     * [applicationIdNumber] is intentionally kept: it comes from Prefs, not the per-app build.
+     */
+    fun resetBuilder(): KizzyRPC {
+        activityName = null
+        details = null
+        state = null
+        party = null
+        largeImage = null
+        smallImage = null
+        largeText = null
+        smallText = null
+        status = null
+        startTimestamps = null
+        stopTimestamps = null
+        type = 0
+        platform = null
+        buttons.clear()
+        buttonUrl.clear()
+        url = null
+        return this
+    }
+
     fun isRpcRunning(): Boolean {
         return discordWebSocket.isWebSocketConnected()
     }
@@ -267,6 +295,18 @@ class KizzyRPC(
         }
     }
 
+    /**
+     * Discord renders an activity that carries an `application_id` as a
+     * "Playing {app}" card. For Listening/Watching/Competing (any type other than
+     * Playing) a set `application_id` makes the client drop the whole activity —
+     * so it shows up nowhere even though the presence was sent. Only attach the id
+     * for the Playing type; other types render from `name`/`type` alone.
+     */
+    private fun applicationIdFor(activityType: Int): String? =
+        if (activityType == 0)
+            applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID
+        else null
+
     suspend fun build() {
         presence = Presence(
             activities = listOf(
@@ -289,7 +329,7 @@ class KizzyRPC(
                     ).takeIf { largeImage != null || smallImage != null },
                     buttons = buttons.takeIf { buttons.size > 0 },
                     metadata = Metadata(buttonUrls = buttonUrl).takeIf { buttonUrl.size > 0 },
-                    applicationId = applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID,
+                    applicationId = applicationIdFor(type),
                     url = url
                 )
             ),
@@ -314,8 +354,24 @@ class KizzyRPC(
         var time = Timestamps(start = startTimestamps)
         if (commonRpc.time != null)
             Timestamps(end = commonRpc.time.end, start = commonRpc.time.start).also { time = it }
-        if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
-            Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize)).also { party = it }
+        // Always explicit from this call's party fields (not the builder's persisted [party])
+        // so switching to an app without a party clears the previous app's instead of
+        // inheriting it — same class of fix as the per-call buttons below.
+        val effectiveParty = if (commonRpc.partyCurrentSize != null && commonRpc.partyMaxSize != null)
+            Party(id = "kizzy", size = arrayOf(commonRpc.partyCurrentSize, commonRpc.partyMaxSize))
+        else null
+        val effectiveType = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0]
+        // Per-call buttons win when provided (App Detection per-app overrides); otherwise fall
+        // back to whatever was set on the builder — keeps Media/Experimental byte-identical.
+        val effectiveButtonLabels: List<String>
+        val effectiveButtonUrls: List<String>
+        if (commonRpc.buttons != null) {
+            effectiveButtonLabels = commonRpc.buttons.map { it.label }
+            effectiveButtonUrls = commonRpc.buttons.map { it.url }
+        } else {
+            effectiveButtonLabels = buttons
+            effectiveButtonUrls = buttonUrl
+        }
         discordWebSocket.sendActivity(
             Presence(
                 activities = listOf(
@@ -323,7 +379,7 @@ class KizzyRPC(
                         name = commonRpc.name,
                         details = commonRpc.details?.takeIf { it.isNotEmpty() }?.sanitize(),
                         state = commonRpc.state?.takeIf { it.isNotEmpty() }?.sanitize(),
-                        type = commonRpc.type ?: Prefs[CUSTOM_ACTIVITY_TYPE, 0],
+                        type = effectiveType,
                         platform = commonRpc.platform?.sanitize(),
                         timestamps = time.takeIf { enableTimestamps == true },
                         assets = Assets(
@@ -332,16 +388,19 @@ class KizzyRPC(
                                 largeText = commonRpc.largeText?.sanitize(),
                                 smallText = commonRpc.smallText?.sanitize()
                             ).takeIf { commonRpc.largeImage != null || commonRpc.smallImage != null },
-                        party = party.takeIf { party != null },
-                        buttons = buttons.takeIf { buttons.size > 0 },
-                        metadata = Metadata(buttonUrls = buttonUrl).takeIf { buttonUrl.size > 0 },
-                        applicationId = applicationIdNumber.takeIf { it.isNotEmpty() } ?: Constants.APPLICATION_ID
-
+                        party = effectiveParty,
+                        buttons = effectiveButtonLabels.takeIf { it.isNotEmpty() },
+                        metadata = Metadata(buttonUrls = effectiveButtonUrls).takeIf { effectiveButtonUrls.isNotEmpty() },
+                        applicationId = applicationIdFor(effectiveType),
+                        // Streaming URL only renders for type 1; carried per-call for App Detection.
+                        url = commonRpc.streamUrl ?: url
                     )
                 ),
                 afk = true,
-                since = startTimestamps,
-                status = this.status
+                // Prefer the fresh start from the incoming update (e.g. an app switch)
+                // so `since` doesn't stay pinned to the first activity's start time.
+                since = commonRpc.time?.start ?: startTimestamps,
+                status = commonRpc.status ?: this.status
             )
         )
     }

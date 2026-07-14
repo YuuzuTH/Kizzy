@@ -13,9 +13,13 @@
 package com.my.kizzy.feature_startup
 
 import android.Manifest.permission.POST_NOTIFICATIONS
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -92,6 +96,17 @@ fun StartUp(
             onResult = { isGranted ->
                 notificationPostingPerm = isGranted
             })
+    // Battery-optimization exemption — the #1 reason aggressive OEMs (Xiaomi/Samsung/…)
+    // kill the RPC foreground service in the background.
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    var isBatteryOptIgnored by remember {
+        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+    }
+    val batteryOptLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        isBatteryOptIgnored = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    }
     Scaffold(topBar = {
         TopAppBar(title = {
             Text(
@@ -206,6 +221,32 @@ fun StartUp(
                         modifier = Modifier,
                         style = MaterialTheme.typography.titleMedium
                     )
+                }
+                item {
+                    SetupCard(
+                        title = stringResource(id = R.string.battery_optimization),
+                        description = stringResource(id = R.string.battery_optimization_desc),
+                        status = isBatteryOptIgnored
+                    ) {
+                        if (!isBatteryOptIgnored) {
+                            try {
+                                @SuppressLint("BatteryLife")
+                                val intent = Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                batteryOptLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                // Some Android Go / stripped OEM builds lack that activity —
+                                // fall back to the general battery-optimization list.
+                                runCatching {
+                                    batteryOptLauncher.launch(
+                                        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
                 item {
                     SetupCard(title = stringResource(id = R.string.account),

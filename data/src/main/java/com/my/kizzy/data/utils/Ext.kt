@@ -102,11 +102,12 @@ fun ApplicationInfo.toBitmap(context: Context): Bitmap? {
     )
 
     val bitmap = icon?.let {
-        Bitmap.createBitmap(
-            it.intrinsicWidth,
-            icon.intrinsicHeight,
-            Bitmap.Config.ARGB_8888
-        )
+        // Some drawables (adaptive icons, solid-colour drawables) report an
+        // intrinsic size of -1, which makes Bitmap.createBitmap throw
+        // "width and height must be > 0". Fall back to a standard icon size.
+        val width = it.intrinsicWidth.takeIf { w -> w > 0 } ?: 192
+        val height = it.intrinsicHeight.takeIf { h -> h > 0 } ?: 192
+        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     }
     val canvas = bitmap?.let { Canvas(it) }
     if (icon != null) {

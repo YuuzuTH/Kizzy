@@ -59,3 +59,15 @@ data class Release(
     @SerialName("assets")
     val assets: List<Asset?>? = null
 )
+
+// Hidden marker appended to a release body (by kizzy-release.sh --critical) to flag it
+// as a mandatory/forced update. GitHub renders release bodies as markdown, so an HTML
+// comment is invisible on the releases page but still present in the raw `body` field
+// this app fetches from the API — no dedicated API field needed.
+private const val CRITICAL_UPDATE_MARKER = "<!--KIZZY_CRITICAL_UPDATE-->"
+
+/** Whether this release is a mandatory/forced update (see [CRITICAL_UPDATE_MARKER]). */
+fun Release.isCritical(): Boolean = body?.contains(CRITICAL_UPDATE_MARKER) == true
+
+/** [body] with the hidden critical-update marker stripped, safe to show to the user. */
+fun Release.changelogBody(): String = (body ?: "").replace(CRITICAL_UPDATE_MARKER, "").trimEnd()

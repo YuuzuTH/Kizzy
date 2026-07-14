@@ -15,6 +15,7 @@ package com.my.kizzy.feature_logs
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import com.my.kizzy.data.remote.LogWebhookReporter
 import com.my.kizzy.domain.model.logs.LogEvent
 import com.my.kizzy.feature_logs.LoggerProvider.logger
 import com.my.kizzy.preference.Prefs
@@ -45,4 +46,14 @@ class LogsViewModel: ViewModel() {
         return this.text.contains(filter,ignoreCase = true) || this.tag.contains(filter,ignoreCase = true)
     }
     fun clearLogs() = logger.clear()
+
+    fun sendDebugLog() {
+        val snapshot = try {
+            logs.toList()
+        } catch (_: ConcurrentModificationException) {
+            logs.toList()
+        }
+        val text = snapshot.joinToString("\n") { "[${it.level}] ${it.tag}: ${it.text}" }
+        LogWebhookReporter.report("manual", text)
+    }
 }

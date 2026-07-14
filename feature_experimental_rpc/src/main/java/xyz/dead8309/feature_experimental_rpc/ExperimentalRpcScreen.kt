@@ -12,6 +12,8 @@
 
 package xyz.dead8309.feature_experimental_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -147,13 +149,13 @@ fun ExperimentalRpcScreen(
                 experimentalRpcRunning = !experimentalRpcRunning
                 when (experimentalRpcRunning) {
                     true -> {
-                        context.stopService(Intent(context, AppDetectionService::class.java))
-                        context.stopService(Intent(context, CustomRpcService::class.java))
-                        context.stopService(Intent(context, MediaRpcService::class.java))
+                        context.stopRpcService(AppDetectionService::class.java)
+                        context.stopRpcService(CustomRpcService::class.java)
+                        context.stopRpcService(MediaRpcService::class.java)
                         context.startService(Intent(context, ExperimentalRpc::class.java))
                     }
 
-                    false -> context.stopService(Intent(context, ExperimentalRpc::class.java))
+                    false -> context.stopRpcService(ExperimentalRpc::class.java)
                 }
             }
             LazyColumn {

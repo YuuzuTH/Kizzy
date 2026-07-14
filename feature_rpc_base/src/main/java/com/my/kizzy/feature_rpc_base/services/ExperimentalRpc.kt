@@ -24,12 +24,15 @@ import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import com.my.kizzy.data.get_current_data.app.GetCurrentlyRunningApp
 import com.my.kizzy.data.get_current_data.media.GetCurrentPlayingMediaAll
 import com.my.kizzy.data.get_current_data.media.RichMediaMetadata
 import com.my.kizzy.data.rpc.CommonRpc
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcConnectionState
 import com.my.kizzy.data.rpc.RpcImage
 import com.my.kizzy.data.rpc.TemplateKeys
 import com.my.kizzy.data.rpc.TemplateProcessor
@@ -37,17 +40,22 @@ import com.my.kizzy.data.rpc.Timestamps
 import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
+import com.my.kizzy.feature_rpc_base.forgetActiveService
+import com.my.kizzy.feature_rpc_base.observeConnectionStatus
+import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -78,10 +86,19 @@ class ExperimentalRpc : Service() {
     @Inject
     lateinit var notificationBuilder: Notification.Builder
 
+    @Inject
+    lateinit var rpcConnectionState: RpcConnectionState
+
+    // Separate from `scope`, which is churned with cancelChildren() on every media/app change.
+    private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private lateinit var mediaSessionManager: MediaSessionManager
 
     private var currentMediaController: MediaController? = null
     private val mediaControllerCallback = MediaControllerCallback()
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val reRegisterRunnable = Runnable { reRegisterAndRefresh() }
 
     private var isMediaSessionActive = false
 
@@ -103,8 +120,11 @@ class ExperimentalRpc : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action.equals(Constants.ACTION_STOP_SERVICE)) stopSelf()
-        else if (intent?.action.equals(Constants.ACTION_RESTART_SERVICE)) {
+        if (intent?.action.equals(Constants.ACTION_STOP_SERVICE)) {
+            // User tapped Stop — don't auto-start this again on the next boot.
+            forgetActiveService(javaClass.name)
+            stopSelf()
+        } else if (intent?.action.equals(Constants.ACTION_RESTART_SERVICE)) {
             stopSelf()
             startService(Intent(this, ExperimentalRpc::class.java))
         } else {
@@ -129,11 +149,23 @@ class ExperimentalRpc : Service() {
                 )
                 .addAction(R.drawable.ic_dev_rpc, getString(R.string.exit), pendingIntent)
                 .build()
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                startForeground(Constants.NOTIFICATION_ID, notification)
-            } else {
-                startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            try {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    startForeground(Constants.NOTIFICATION_ID, notification)
+                } else {
+                    startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                }
+            } catch (e: Exception) {
+                // A background START_STICKY restart can be rejected on Android 12+
+                // (ForegroundServiceStartNotAllowedException) — fail soft, don't crash.
+                stopSelf()
+                return START_NOT_STICKY
             }
+            // Went foreground successfully — mark this as the service to bring back after a reboot.
+            rememberActiveService(this)
+            // Surface "reconnecting…" in the notification if the gateway drops mid-session.
+            rpcConnectionState.reset()
+            observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager)
 
 
             mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
@@ -155,27 +187,15 @@ class ExperimentalRpc : Service() {
                 emptyList()
             }
 
-            val initialMediaSessions = mediaSessionManager.getActiveSessions(
-                ComponentName(this, NotificationListener::class.java)
-            )
-            var mediaActiveInitially = false
-            if (useMediaRpc && initialMediaSessions.isNotEmpty()) {
-                val firstActiveMediaController = initialMediaSessions.firstOrNull {
-                    enabledExperimentalApps.contains(it.packageName)
-                }
-                if (firstActiveMediaController != null) {
-                    mediaActiveInitially = true
-                    activeSessionsListener(listOf(firstActiveMediaController), false)
-                }
-            }
-
-            if (!mediaActiveInitially) {
-                if (useAppsRpc) {
-                    startAppDetectionCoroutine()
-                }
-            }
+            // Register the first media session (and fall back to app detection when
+            // there is none). isEvent = false → runs immediately, no debounce delay.
+            // reRegisterAndRefresh() re-queries the sessions itself, so this covers the
+            // whole "media active? → media presence, else → app detection" decision.
+            activeSessionsListener(null, false)
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system resurrects the service after a kill; the else branch
+        // above reloads every setting from Prefs, so a null-intent restart fully recovers.
+        return START_STICKY
     }
 
     private fun startAppDetectionCoroutine() {
@@ -186,22 +206,32 @@ class ExperimentalRpc : Service() {
 
         scope.launch {
             while (isActive) {
-                val currentApp = getCurrentlyRunningApp()
+                try {
+                    val currentApp = getCurrentlyRunningApp()
 
-                if (
-                    currentApp.name.isNotEmpty() &&
-                    currentApp.packageName != currentPackageName &&
-                    enabledExperimentalApps.contains(currentApp.packageName)
-                ) {
-                    currentPackageName = currentApp.packageName
-                    updatePresence(appInfo = currentApp.copy(time = startTimestamps))
-                } else if (currentApp.name.isNotEmpty() && currentApp.packageName != currentPackageName) {
-                    currentPackageName = ""
-                    if (!isMediaSessionActive || !useMediaRpc) {
-                        updatePresence(CommonRpc())
+                    if (
+                        currentApp.name.isNotEmpty() &&
+                        currentApp.packageName != currentPackageName &&
+                        enabledExperimentalApps.contains(currentApp.packageName)
+                    ) {
+                        currentPackageName = currentApp.packageName
+                        updatePresence(appInfo = currentApp.copy(time = startTimestamps))
+                    } else if (currentApp.name.isNotEmpty() && currentApp.packageName != currentPackageName) {
+                        currentPackageName = ""
+                        if (!isMediaSessionActive || !useMediaRpc) {
+                            updatePresence(CommonRpc())
+                        }
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A transient failure (e.g. network error while uploading an app
+                    // icon) must not kill the detection loop permanently. Reset the
+                    // tracked package so the failed update is retried next tick.
+                    currentPackageName = ""
+                    logger.e(TAG, "Detection cycle failed: ${e.message}")
                 }
-                delay(5000)
+                delay(2000)
             }
         }
     }
@@ -407,12 +437,24 @@ class ExperimentalRpc : Service() {
             return
         }
         logger.d(TAG, "Active media sessions changed")
-        if (isEvent) runBlocking { delay(1500) }
+
+        // Debounce on the main looper instead of blocking it with runBlocking{delay}.
+        // The event is occasionally fired before the session list is actually updated,
+        // so we wait 1.5s and re-query fresh inside reRegisterAndRefresh(). Blocking the
+        // main thread here (as the old runBlocking{delay(1500)} did) risks an ANR.
+        mainHandler.removeCallbacks(reRegisterRunnable)
+        mainHandler.postDelayed(reRegisterRunnable, if (isEvent) 1500L else 0L)
+    }
+
+    private fun reRegisterAndRefresh() {
+        val mediaSessions = mediaSessionManager.getActiveSessions(
+            ComponentName(this, NotificationListener::class.java)
+        )
 
         currentMediaController?.unregisterCallback(mediaControllerCallback)
         currentMediaController = null
 
-        if (mediaSessions?.isNotEmpty() == true) {
+        if (mediaSessions.isNotEmpty()) {
             currentMediaController = mediaSessions.firstOrNull {
                 enabledExperimentalApps.contains(it.packageName)
             }
@@ -490,6 +532,15 @@ class ExperimentalRpc : Service() {
 
             scope.coroutineContext.cancelChildren()
             scope.launch {
+                // Same grace delay in both branches, for the same reason — a player (observed
+                // with YT Music) commonly destroys its MediaSession and creates a fresh one for
+                // the next track rather than reusing it. The useAppsRpc branch used to skip this
+                // and fall back to app-detection presence immediately, which meant every track
+                // change flashed the wrong presence (whatever app happens to be foreground) for
+                // up to ~1.5s until activeSessionsListener's own debounce re-registered the real
+                // session and cancelled this coroutine — the same class of bug as
+                // updatePresence(null,...) below misreading a momentary gap as "nothing playing".
+                delay(1000)
                 if (useAppsRpc) {
                     startAppDetectionCoroutine()
                 } else {
@@ -500,8 +551,10 @@ class ExperimentalRpc : Service() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(reRegisterRunnable)
         mediaSessionManager.removeOnActiveSessionsChangedListener(::activeSessionsListener)
         currentMediaController?.unregisterCallback(mediaControllerCallback)
+        connectionScope.cancel()
         scope.cancel()
         kizzyRPC.closeRPC()
         super.onDestroy()

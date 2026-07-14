@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>D_RPC Yuzu夕 — Rich Presence สำหรับ Discord บน Android</title>
+<meta name="description" content="D_RPC Yuzu夕 — จัดการ Rich Presence ของ Discord บนมือถือ Android: ตรวจจับแอพ/เกมอัตโนมัติ ปรับแต่งได้เต็มรายแอพ แชร์เพลง/มีเดียเรียลไทม์ ฟรีและโอเพนซอร์ส" />
+<meta name="theme-color" content="#AF92F1" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>" />
+
+<!-- Open Graph (ลิงก์โชว์สวยตอนแชร์ใน Discord/โซเชียล) -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="D_RPC Yuzu夕" />
+<meta property="og:description" content="Rich Presence สำหรับ Discord บน Android — ตรวจจับแอพ/เกม ปรับแต่งได้เต็มรายแอพ แชร์มีเดีย ฟรีและโอเพนซอร์ส 🌙" />
+<meta property="og:url" content="https://yuuzuth.github.io/Kizzy/" />
+<meta property="og:image" content="https://yuuzuth.github.io/Kizzy/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://yuuzuth.github.io/Kizzy/og.png" />
+
+<style>
+  :root{
+    --bg:#14111f; --bg2:#1c1730; --card:#221b38; --card2:#2a2145;
+    --brand:#af92f1; --brand-lt:#c9b6f7; --sakura:#f2a9cf; --sakura-dim:#c98bb0;
+    --text:#ece8f5; --muted:#a89ec4; --line:#342a52;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    background:radial-gradient(1200px 600px at 70% -10%, #2b2150 0%, transparent 60%),
+               radial-gradient(900px 500px at 0% 10%, #3a1f3a 0%, transparent 55%),
+               var(--bg);
+    color:var(--text); line-height:1.65; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  .btn{
+    display:inline-flex;align-items:center;gap:.5em;
+    padding:14px 26px;border-radius:14px;font-weight:700;font-size:1.02rem;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--sakura));color:#1a1226;
+    box-shadow:0 8px 26px rgba(175,146,241,.35)}
+  .btn-ghost{border:1.5px solid var(--line);color:var(--text);background:rgba(255,255,255,.02)}
+  .btn-ghost:hover{border-color:var(--brand)}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
+    background:rgba(20,17,31,.72);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{font-weight:800;font-size:1.15rem;letter-spacing:.3px}
+  .logo .crest{color:var(--sakura)}
+  .nav-links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}
+  .nav-links a:hover{color:var(--brand-lt)}
+  @media(max-width:640px){.nav-links{display:none}}
+
+  /* HERO */
+  header{padding:78px 0 64px;text-align:center;position:relative}
+  .moon{font-size:2.4rem;filter:drop-shadow(0 0 18px rgba(175,146,241,.6))}
+  h1{font-size:clamp(2.3rem,6vw,3.8rem);line-height:1.1;margin:14px 0 6px;font-weight:800}
+  h1 .grad{background:linear-gradient(120deg,var(--brand-lt),var(--sakura));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{font-size:clamp(1.05rem,2.4vw,1.35rem);color:var(--muted);max-width:620px;margin:10px auto 0}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+  .ver{margin-top:16px;font-size:.85rem;color:var(--muted)}
+  .ver b{color:var(--brand-lt)}
+
+  section{padding:64px 0}
+  .eyebrow{color:var(--sakura);font-weight:700;letter-spacing:2px;font-size:.8rem;text-transform:uppercase}
+  h2{font-size:clamp(1.7rem,4vw,2.4rem);margin:8px 0 8px;font-weight:800}
+  .sub{color:var(--muted);max-width:620px}
+  .center{text-align:center}
+  .center .sub{margin:0 auto}
+
+  /* FEATURES */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-top:38px}
+  .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+    border-radius:18px;padding:26px 24px;transition:transform .2s ease,border-color .2s ease}
+  .card:hover{transform:translateY(-4px);border-color:var(--brand)}
+  .card .ic{font-size:1.9rem}
+  .card h3{margin:14px 0 6px;font-size:1.18rem}
+  .card p{color:var(--muted);font-size:.96rem}
+
+  /* STEPS */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;margin-top:38px}
+  .step{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .step .n{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(135deg,var(--brand),var(--sakura));color:#1a1226;font-weight:800;margin-bottom:12px}
+  .step h3{font-size:1.08rem;margin-bottom:6px}
+  .step p{color:var(--muted);font-size:.94rem}
+  .note{margin-top:26px;background:rgba(242,169,207,.08);border:1px solid var(--sakura-dim);
+    border-radius:14px;padding:16px 20px;color:var(--text);font-size:.94rem}
+
+  /* FAQ */
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:2px 22px;margin-top:14px}
+  details[open]{border-color:var(--brand)}
+  summary{cursor:pointer;padding:18px 0;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--brand-lt);font-size:1.5rem;font-weight:400}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);padding:0 0 20px;font-size:.96rem}
+
+  /* CTA band */
+  .band{background:linear-gradient(135deg,rgba(175,146,241,.14),rgba(242,169,207,.12));
+    border:1px solid var(--line);border-radius:24px;padding:52px 26px;text-align:center;margin:20px 0}
+
+  footer{border-top:1px solid var(--line);padding:44px 0;color:var(--muted);font-size:.9rem}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center}
+  footer a{color:var(--brand-lt)}
+  .disc{font-size:.82rem;opacity:.8;margin-top:14px;max-width:720px}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="logo">🌙 D_RPC <span class="crest">Yuzu夕</span></div>
+  <div class="nav-links">
+    <a href="#features">ฟีเจอร์</a>
+    <a href="#install">วิธีติดตั้ง</a>
+    <a href="#faq">คำถามที่พบบ่อย</a>
+    <a href="https://github.com/YuuzuTH/Kizzy">GitHub</a>
+  </div>
+</div></nav>
+
+<header><div class="wrap">
+  <div class="moon">🌙</div>
+  <h1>Rich Presence<br><span class="grad">บนมือถือ ที่ดีที่สุด</span></h1>
+  <p class="tag">D_RPC Yuzu夕 — โชว์เกม แอพ และเพลงที่คุณกำลังเล่นบนโปรไฟล์ Discord ของคุณ อัตโนมัติ ฟรี และโอเพนซอร์ส</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/YuuzuTH/Kizzy/releases/latest">⬇ ดาวน์โหลด APK</a>
+    <a class="btn btn-ghost" href="https://github.com/YuuzuTH/Kizzy">โค้ดบน GitHub</a>
+  </div>
+  <p class="ver">เวอร์ชันล่าสุด <b>v6.10.2.000</b> · Android 8.0+ · ฟรี ไม่มีโฆษณา</p>
+</div></header>
+
+<section id="features"><div class="wrap center">
+  <div class="eyebrow">ทำอะไรได้บ้าง</div>
+  <h2>ฟีเจอร์เด่น</h2>
+  <p class="sub">ทุกอย่างที่ต้องการเพื่อให้โปรไฟล์ Discord ของคุณมีชีวิต</p>
+  <div class="grid" style="text-align:left">
+    <div class="card"><div class="ic">🎮</div><h3>ตรวจจับแอพ &amp; เกม</h3><p>จับแอพหรือเกมที่กำลังเปิดอยู่แล้วโชว์เป็นสถานะให้อัตโนมัติ สลับเกมก็เปลี่ยนตามทันที ต่อสายหลุดก็เชื่อมต่อใหม่ให้เอง</p></div>
+    <div class="card"><div class="ic">🎨</div><h3>ปรับแต่งได้เต็มรายแอพ</h3><p>กดปุ่มดินสอที่แอพไหนก็ตั้งข้อความ รูปภาพ ปุ่ม สถานะ/ปาร์ตี้เองได้ พร้อมพรีวิวก่อนใช้จริง</p></div>
+    <div class="card"><div class="ic">🎵</div><h3>แชร์มีเดียเรียลไทม์</h3><p>โชว์เพลง/วิดีโอที่กำลังเล่น พร้อมชื่อเพลง ศิลปิน และปกอัลบั้ม</p></div>
+    <div class="card"><div class="ic">🕹️</div><h3>เกมคอนโซล 300+</h3><p>พรีเซ็ตสำหรับเกมคอนโซลกว่า 300 เกม เลือกใช้ได้ทันที</p></div>
+    <div class="card"><div class="ic">🖼️</div><h3>อัพโหลดรูปจากเครื่อง</h3><p>ไม่ต้องหาลิงก์รูปเอง เลือกรูปจากแกลเลอรีอัพขึ้นได้ตรงในแอพ</p></div>
+    <div class="card"><div class="ic">🔄</div><h3>อัพเดทในตัว</h3><p>เช็คเวอร์ชันใหม่อัตโนมัติ โหลด+ติดตั้งในแอพได้เลย ไม่ต้องเข้าเว็บ</p></div>
+  </div>
+</div></section>
+
+<section id="install"><div class="wrap">
+  <div class="center">
+    <div class="eyebrow">เริ่มใช้งาน</div>
+    <h2>ติดตั้งใน 3 ขั้นตอน</h2>
+    <p class="sub center">ใช้เวลาไม่ถึงนาที</p>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>ดาวน์โหลด APK</h3><p>กดปุ่มดาวน์โหลด โหลดไฟล์ล่าสุดจากหน้า GitHub Releases มาติดตั้ง</p></div>
+    <div class="step"><div class="n">2</div><h3>ให้สิทธิ์ที่จำเป็น</h3><p>เปิด <b>Usage Access</b> (สำหรับจับแอพ/เกม) และ <b>Notification Access</b> (สำหรับจับเพลง/มีเดีย)</p></div>
+    <div class="step"><div class="n">3</div><h3>ล็อกอิน &amp; เปิดสวิตช์</h3><p>ล็อกอิน Discord แล้วเปิดโหมดที่ต้องการ — สถานะจะขึ้นบนโปรไฟล์ทันที</p></div>
+  </div>
+  <div class="note">💡 <b>ถ้าเคยลง Kizzy ตัวต้นฉบับไว้</b> ให้ถอนออกก่อนติดตั้งตัวนี้ครั้งแรก (ลายเซ็นคนละตัว) — หลังจากนั้นอัปเดตทับได้ตลอด ไม่ต้องถอนอีก</div>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <div class="center">
+    <div class="eyebrow">สงสัยตรงไหน</div>
+    <h2>คำถามที่พบบ่อย</h2>
+  </div>
+  <div style="max-width:760px;margin:34px auto 0">
+    <details open><summary>ฟรีจริงไหม? มีโฆษณาหรือเปล่า?</summary><p>ฟรี 100% ไม่มีโฆษณา ไม่มีค่าใช้จ่าย และเป็นโอเพนซอร์ส (GPL-3.0) — ดูโค้ดทั้งหมดได้บน GitHub</p></details>
+    <details><summary>ทำไมต้องถอนตัวต้นฉบับก่อน?</summary><p>เพราะเซ็นด้วยลายเซ็นคนละตัวกับต้นฉบับ Android เลยไม่ให้อัปทับกันโดยตรง ถอนของเดิมออกครั้งเดียวแล้วลงตัวนี้ หลังจากนั้นอัปเดตเวอร์ชันใหม่ทับได้ตลอด</p></details>
+    <details><summary>ต้องเปิดแอพค้างไว้ตลอดไหม?</summary><p>ระบบทำงานเป็น service เบื้องหลัง แนะนำให้ปิด Battery Optimization ให้แอพ เพื่อไม่ให้ระบบฆ่า service ตอนอยู่เบื้องหลัง</p></details>
+    <details><summary>ปลอดภัยไหม? ใช้ token ยังไง?</summary><p>D_RPC Yuzu夕 ใช้ user token เพื่อแสดง Rich Presence ซึ่งเป็นการใช้งานนอกเหนือข้อกำหนดปกติของ Discord (เขตสีเทา) โปรดใช้อย่างเข้าใจความเสี่ยง token ถูกเก็บไว้ในเครื่องคุณเท่านั้น ไม่ส่งไปไหน</p></details>
+    <details><summary>แอพส่งข้อมูลอะไรออกจากเครื่องบ้าง?</summary><p>ปกติไม่มีอะไรส่งออกเลย — ยกเว้นตอนแอพแครช หรือกดปุ่ม "ส่ง log" เองในหน้า Logs จะส่ง log ล่าสุด + ข้อมูลเครื่องพื้นฐาน (รุ่น Android/รุ่นเครื่อง) ให้ทีมเราไปช่วยแก้บั๊ก โดยตัด token/session ออกก่อนส่งเสมอ ไม่มีการส่งอัตโนมัติแบบเงียบๆ นอกจากสองกรณีนี้</p></details>
+    <details><summary>เจอบั๊กหรืออยากเสนอฟีเจอร์?</summary><p>เปิด issue ได้ที่หน้า <a href="https://github.com/YuuzuTH/Kizzy/issues">GitHub Issues</a> ของเรา</p></details>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="band">
+    <div class="moon">🌙</div>
+    <h2 style="margin-top:6px">พร้อมให้โปรไฟล์คุณเปล่งประกาย?</h2>
+    <p class="sub" style="margin:8px auto 26px">ดาวน์โหลดฟรี เริ่มใช้ได้ในไม่กี่นาที</p>
+    <a class="btn btn-primary" href="https://github.com/YuuzuTH/Kizzy/releases/latest">⬇ ดาวน์โหลด v6.10.2.000</a>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div>
+    <div class="logo">🌙 D_RPC <span class="crest">Yuzu夕</span></div>
+    <p class="disc">Fork จาก <a href="https://github.com/dead8309/Kizzy">dead8309/Kizzy</a> ภายใต้สัญญาอนุญาต GPL-3.0 · ขอบคุณผู้พัฒนาต้นฉบับ · แอพนี้ไม่มีส่วนเกี่ยวข้องหรือได้รับการรับรองจาก Discord Inc.</p>
+  </div>
+  <div style="display:flex;gap:20px">
+    <a href="https://github.com/YuuzuTH/Kizzy">GitHub</a>
+    <a href="https://github.com/YuuzuTH/Kizzy/releases">Releases</a>
+    <a href="https://github.com/YuuzuTH/Kizzy/issues">แจ้งบั๊ก</a>
+  </div>
+</div></footer>
+
+</body>
+</html>

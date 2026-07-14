@@ -18,22 +18,23 @@ import androidx.activity.compose.setContent
 import com.blankj.utilcode.util.AppUtils
 import com.blankj.utilcode.util.DeviceUtils
 import com.developer.crashx.CrashActivity
+import com.my.kizzy.data.remote.LogWebhookReporter
 import com.my.kizzy.ui.theme.KizzyTheme
 import com.my.kizzy.ui.theme.LocalDarkTheme
-import com.my.kizzy.ui.theme.LocalDynamicColorSwitch
 
 class CrashHandler : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val report = CrashActivity.getStackTraceFromIntent(intent)
+        val crashLog = report.buildCrashLog()
+        LogWebhookReporter.report("crash", crashLog)
         setContent {
             KizzyTheme(
                 darkTheme = LocalDarkTheme.current.isDarkTheme(),
                 isHighContrastModeEnabled = LocalDarkTheme.current.isHighContrastModeEnabled,
-                isDynamicColorEnabled = LocalDynamicColorSwitch.current,
             ){
-                CrashScreen(trace = report.buildCrashLog())
+                CrashScreen(trace = crashLog)
             }
         }
     }

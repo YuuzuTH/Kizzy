@@ -14,18 +14,24 @@
 
 package com.my.kizzy.feature_apps_rpc
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.AppsOutage
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,13 +41,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,12 +68,17 @@ import com.my.kizzy.feature_rpc_base.services.AppDetectionService
 import com.my.kizzy.feature_rpc_base.services.CustomRpcService
 import com.my.kizzy.feature_rpc_base.services.ExperimentalRpc
 import com.my.kizzy.feature_rpc_base.services.MediaRpcService
+import com.my.kizzy.data.rpc.AppRpcOverride
 import com.my.kizzy.resources.R
+import com.my.kizzy.ui.components.AppDetectionHelpDialog
+import com.my.kizzy.ui.components.AppOverrideDialog
 import com.my.kizzy.ui.components.AppsItem
 import com.my.kizzy.ui.components.BackButton
 import com.my.kizzy.ui.components.SearchBar
 import com.my.kizzy.ui.components.SwitchBar
 import com.my.kizzy.ui.components.preference.PreferencesHint
+import java.io.File
+import kotlinx.coroutines.launch
 
 @SuppressLint("MutableCollectionMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +88,10 @@ fun AppsRPC(
     updateAppEnabled: (String) -> Unit,
     onBackPressed: () -> Unit,
     hasUsageAccess: Boolean,
+    onSetOverride: (pkg: String, override: AppRpcOverride) -> Unit = { _, _ -> },
+    onClearOverride: (pkg: String) -> Unit = { },
+    onClearAllOverrides: () -> Unit = { },
+    onUploadImage: (file: File, onResult: (String) -> Unit) -> Unit = { _, _ -> },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState(),
@@ -77,11 +100,24 @@ fun AppsRPC(
     var serviceEnabled by remember { mutableStateOf(AppUtils.appDetectionRunning()) }
     var searchText by remember { mutableStateOf("") }
     var isSearchBarVisible by remember { mutableStateOf(false) }
+    var editingPkg by remember { mutableStateOf<String?>(null) }
+    var showOnlyCustomized by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    // Backs the reset-to-default undo Snackbar below — hosted here (not inside
+    // AppOverrideDialog) since the dialog is already gone by the time reset fires onClear.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // Read inside the Undo coroutine below instead of the plain `state` parameter — that
+    // coroutine is launched once at reset time and keeps running across recompositions, so a
+    // captured `state` would stay frozen at its launch-time value. rememberUpdatedState keeps
+    // `.value` current so Undo can tell whether the app was re-saved while its Snackbar was up.
+    val currentState = rememberUpdatedState(state)
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LargeTopAppBar(
                 title = {
@@ -106,6 +142,12 @@ fun AppsRPC(
                             )
                         }
                     } else {
+                        IconButton(onClick = { showHelp = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                                contentDescription = stringResource(id = R.string.app_detection_help_title),
+                            )
+                        }
                         IconButton(onClick = { isSearchBarVisible = !isSearchBarVisible }) {
                             Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                         }
@@ -154,18 +196,41 @@ fun AppsRPC(
                             serviceEnabled = !serviceEnabled
                             when (serviceEnabled) {
                                 true -> {
-                                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
-                                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
+                                    ctx.stopRpcService(MediaRpcService::class.java)
+                                    ctx.stopRpcService(CustomRpcService::class.java)
+                                    ctx.stopRpcService(ExperimentalRpc::class.java)
                                     ctx.startService(Intent(ctx, AppDetectionService::class.java))
                                 }
 
-                                false -> ctx.stopService(
-                                    Intent(
-                                        ctx,
-                                        AppDetectionService::class.java
-                                    )
+                                false -> ctx.stopRpcService(AppDetectionService::class.java)
+                            }
+                        }
+                    }
+                    if (state.overrides.isNotEmpty()) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                FilterChip(
+                                    selected = showOnlyCustomized,
+                                    onClick = { showOnlyCustomized = !showOnlyCustomized },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                id = R.string.apps_configured_summary,
+                                                state.overrides.size
+                                            )
+                                        )
+                                    },
                                 )
+                                Spacer(modifier = Modifier.weight(1f))
+                                TextButton(onClick = onClearAllOverrides) {
+                                    Text(stringResource(id = R.string.apps_clear_all))
+                                }
                             }
                         }
                     }
@@ -173,22 +238,76 @@ fun AppsRPC(
                         state.apps.size,
                         key = { idx -> state.apps[idx].pkg }
                     ) { i ->
-                        if (searchText.isEmpty() || state.apps[i].name.contains(
-                                searchText,
-                                ignoreCase = true
-                            ) || state.apps[i].pkg.contains(searchText, ignoreCase = true)
-                        ) {
+                        val matchesSearch = searchText.isEmpty() ||
+                            state.apps[i].name.contains(searchText, ignoreCase = true) ||
+                            state.apps[i].pkg.contains(searchText, ignoreCase = true)
+                        val matchesFilter =
+                            !showOnlyCustomized || state.overrides.containsKey(state.apps[i].pkg)
+                        if (matchesSearch && matchesFilter) {
                             AppsItem(
                                 name = state.apps[i].name,
                                 pkg = state.apps[i].pkg,
                                 isChecked = state.enabledApps[state.apps[i].pkg] ?: false,
-                                onClick = { updateAppEnabled(state.apps[i].pkg) }
+                                onClick = { updateAppEnabled(state.apps[i].pkg) },
+                                onEditClick = { editingPkg = state.apps[i].pkg },
+                                isCustomized = state.overrides.containsKey(state.apps[i].pkg)
                             )
                         } else {
                             Spacer(modifier = Modifier.height(0.dp))
                         }
                     }
                 }
+            }
+
+            if (showHelp) {
+                AppDetectionHelpDialog(onDismissRequest = { showHelp = false })
+            }
+
+            editingPkg?.let { pkg ->
+                val override = state.overrides[pkg] ?: AppRpcOverride()
+                val appName = state.apps.firstOrNull { it.pkg == pkg }?.name ?: pkg
+                // Other apps' saved overrides, offered in the dialog's "copy from" menu — excludes
+                // this app itself; AppOverrideDialog also filters out empty ones defensively.
+                val otherOverrides = state.overrides
+                    .filterKeys { it != pkg }
+                    .mapNotNull { (otherPkg, otherOverride) ->
+                        state.apps.firstOrNull { it.pkg == otherPkg }?.name?.let { it to otherOverride }
+                    }
+                AppOverrideDialog(
+                    appName = appName,
+                    initial = override,
+                    onSave = { newOverride ->
+                        onSetOverride(pkg, newOverride)
+                        editingPkg = null
+                    },
+                    onClear = {
+                        // Snapshot the persisted override (not whatever's mid-edit in the dialog)
+                        // before clearing, so Undo restores exactly what reset just wiped.
+                        val cleared = state.overrides[pkg]
+                        onClearOverride(pkg)
+                        editingPkg = null
+                        if (cleared != null) {
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = ctx.getString(R.string.app_override_reset_snackbar_message, appName),
+                                    actionLabel = ctx.getString(R.string.app_override_reset_snackbar_undo),
+                                    duration = SnackbarDuration.Short,
+                                )
+                                // Only restore if nothing new was saved for pkg while the
+                                // Snackbar was up — otherwise Undo would silently clobber a
+                                // fresh save with this stale, already-cleared value.
+                                if (result == SnackbarResult.ActionPerformed &&
+                                    currentState.value.overrides[pkg] == null
+                                ) {
+                                    onSetOverride(pkg, cleared)
+                                }
+                            }
+                        }
+                    },
+                    onDismissRequest = { editingPkg = null },
+                    onUploadImage = onUploadImage,
+                    otherOverrides = otherOverrides,
+                )
             }
         }
     }

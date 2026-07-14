@@ -140,10 +140,15 @@ object Prefs {
     const val USER_NITRO = "user-nitro"
     const val LAST_RUN_CONSOLE_RPC = "last_run_console_rpc"
     const val LAST_RUN_CUSTOM_RPC = "last_run_custom_rpc"
+    // Which RPC service the user last had running (stored as its class name). Written when
+    // a service starts, cleared when the user stops it. Read by BootReceiver to bring the
+    // same service back after a reboot — and only then. Empty = user wants nothing running.
+    const val LAST_ACTIVE_SERVICE = "last_active_service"
     const val LANGUAGE = "language"
     const val ENABLED_APPS = "enabled_apps"
     const val ENABLED_MEDIA_APPS = "enabled_media_apps"
     const val ENABLED_EXPERIMENTAL_APPS = "enabled_experimental_apps"
+    const val APP_RPC_OVERRIDES = "app_rpc_overrides" //Json Map<packageName, {name,imageUrl}> custom name/image per app
 
     //Media Rpc Preferences
     const val MEDIA_RPC_ARTIST_NAME = "media_rpc_artist_name"
@@ -153,6 +158,7 @@ object Prefs {
     const val MEDIA_RPC_HIDE_ON_PAUSE = "hide_on_pause"
     const val MEDIA_RPC_SHOW_PLAYBACK_STATE = "show_playback_state"
     const val MEDIA_RPC_SHOW_SONG_AS_TITLE = "show_song_as_title"
+    const val MEDIA_RPC_OVERRIDES = "media_rpc_overrides" //Json Map<packageName, AppRpcOverride> per-app presence template, same shape as APP_RPC_OVERRIDES but a separate store
 
     //Rpc Setting Preferences
     const val USE_RPC_BUTTONS = "use_saved_rpc_buttons"
@@ -173,7 +179,16 @@ object Prefs {
     const val THEME_COLOR = "theme_color"
     const val CUSTOM_THEME_COLOR = "custom_theme_color"
     const val IS_FIRST_LAUNCHED = "is_first_launched"
+    // Shown once on app launch: credit to the original dead8309/Kizzy project,
+    // GPL-3.0 terms, and the Discord-affiliation/user-token disclaimers.
+    // Defaults false so existing installs (upgrading into the version that adds
+    // this) see it once too, same as brand new installs.
+    const val CREDIT_DIALOG_SHOWN = "credit_dialog_shown"
     const val CUSTOM_ACTIVITY_TYPE = "custom_activity_type"
+    // App-Detection poll interval in milliseconds (how often it re-checks the foreground app).
+    // Fast 2s / Normal 5s / Battery-saver 10s. Default = Fast (matches the previous hardcoded 2s).
+    const val APP_DETECTION_POLL_INTERVAL = "app_detection_poll_interval"
+    const val APP_DETECTION_POLL_DEFAULT = 2000
     const val SHOW_LOGS_IN_COMPACT_MODE = "logs_compact_mode"
     const val LOGS_AUTO_SCROLL = "logs_auto_scroll"
 
@@ -183,6 +198,21 @@ object Prefs {
     const val CUSTOM_ACTIVITY_STATUS = "custom_activity_status"
 
     const val LATEST_RELEASE = "latest_release"
+
+    // Auto-update (silent check on app launch, see Home.kt):
+    // Tag of the release the user has already seen-and-dismissed the *automatic*
+    // popup for. A manual tap of the update icon always shows the dialog/toast
+    // regardless of this value — it only gates the silent auto-popup, and is never
+    // written for a critical/mandatory release (there is nothing to dismiss).
+    const val LAST_DISMISSED_UPDATE_VERSION = "last_dismissed_update_version"
+    // Epoch ms of the last silent auto-check; throttles it to once per 24h. The
+    // manual "check for updates" tap ignores this and always checks immediately.
+    const val LAST_UPDATE_CHECK_TIME = "last_update_check_time"
+    // Tag name of a known-available newer release ("" = none known). Drives the
+    // toolbar badge so it survives app restarts without waiting for another check.
+    // Set whenever a check (silent or manual) confirms a newer release; cleared
+    // once a check confirms the app is up to date.
+    const val PENDING_UPDATE_TAG = "pending_update_tag"
 
     // Last Deleted Time of Saved Images
     const val LAST_DELETED = "last_deleted"

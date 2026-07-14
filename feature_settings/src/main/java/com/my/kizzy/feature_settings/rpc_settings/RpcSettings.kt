@@ -31,15 +31,12 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.SmartButton
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
@@ -87,13 +84,13 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
     var customActivityStatus by remember {
         mutableStateOf(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
     }
-    var customActivityType by remember {
-        mutableStateOf(Prefs[Prefs.CUSTOM_ACTIVITY_TYPE, 0].toString())
-    }
-    var showActivityTypeDialog by remember {
+    var showActivityStatusDialog by remember {
         mutableStateOf(false)
     }
-    var showActivityStatusDialog by remember {
+    var detectionInterval by remember {
+        mutableStateOf(Prefs[Prefs.APP_DETECTION_POLL_INTERVAL, Prefs.APP_DETECTION_POLL_DEFAULT])
+    }
+    var showDetectionSensitivityDialog by remember {
         mutableStateOf(false)
     }
     var showApplicationIdDialog by remember {
@@ -155,21 +152,20 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
             }
             item {
                 SettingItem(
-                    title = stringResource(id = R.string.custom_activity_type),
-                    description = stringResource(id = R.string.custom_activity_type_desc),
-                    icon = Icons.Default.Code
-                ) {
-                    showActivityTypeDialog = true
-                }
-
-            }
-            item {
-                SettingItem(
                     title = stringResource(id = R.string.custom_activity_status),
                     description = stringResource(id = R.string.custom_activity_status_desc),
                     icon = Icons.Default.DoNotDisturbOn
                 ) {
                     showActivityStatusDialog = true
+                }
+            }
+            item {
+                SettingItem(
+                    title = stringResource(id = R.string.app_detection_sensitivity),
+                    description = stringResource(id = detectionSensitivityLabel(detectionInterval)),
+                    icon = Icons.Default.Speed
+                ) {
+                    showDetectionSensitivityDialog = true
                 }
             }
             item {
@@ -330,67 +326,6 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                 })
         }
 
-        if (showActivityTypeDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showActivityTypeDialog = false
-                },
-                text = {
-                    var activityTypeisExpanded by remember {
-                        mutableStateOf(false)
-                    }
-                    val icon =
-                        if (activityTypeisExpanded) {
-                            Icons.Default.KeyboardArrowUp
-                        } else {
-                            Icons.Default.KeyboardArrowDown
-                        }
-                    RpcField(
-                        value = customActivityType,
-                        label = R.string.activity_type,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        trailingIcon = {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                modifier = Modifier.clickable {
-                                    activityTypeisExpanded = !activityTypeisExpanded
-                                })
-                        }) {
-                        customActivityType = it
-                    }
-                    DropdownMenu(
-                        expanded = activityTypeisExpanded, onDismissRequest = {
-                            activityTypeisExpanded = !activityTypeisExpanded
-                        }, modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Constants.ACTIVITY_TYPE.forEach { (label, value) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(text = label)
-                                },
-                                onClick = {
-                                    customActivityType = value.toString()
-                                    activityTypeisExpanded = false
-                                },
-                            )
-                        }
-                    }
-
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        if (customActivityType.toInt() in 0..5) {
-                            Prefs[Prefs.CUSTOM_ACTIVITY_TYPE] = customActivityType.toInt()
-                            showActivityTypeDialog = false
-                        }
-                    }) {
-                        Text(text = stringResource(R.string.save))
-                    }
-                }
-            )
-        }
-
         if (showActivityStatusDialog) {
             AlertDialog(
                 onDismissRequest = {
@@ -408,6 +343,34 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
                                 customActivityStatus = value
                                 Prefs[Prefs.CUSTOM_ACTIVITY_STATUS] = value
                                 showActivityStatusDialog = false
+                            }
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showDetectionSensitivityDialog) {
+            AlertDialog(
+                onDismissRequest = { showDetectionSensitivityDialog = false },
+                confirmButton = {},
+                icon = { Icon(imageVector = Icons.Default.Speed, contentDescription = null) },
+                title = { Text(stringResource(R.string.app_detection_sensitivity)) },
+                text = {
+                    Column {
+                        // (interval ms, label). Restarting App Detection applies the change.
+                        listOf(
+                            2000 to R.string.detection_fast,
+                            5000 to R.string.detection_normal,
+                            10000 to R.string.detection_battery,
+                        ).forEach { (interval, labelRes) ->
+                            SingleChoiceItem(
+                                text = stringResource(labelRes),
+                                selected = detectionInterval == interval
+                            ) {
+                                detectionInterval = interval
+                                Prefs[Prefs.APP_DETECTION_POLL_INTERVAL] = interval
+                                showDetectionSensitivityDialog = false
                             }
                         }
                     }
@@ -493,4 +456,11 @@ fun RpcSettings(onBackPressed: () -> Boolean) {
             )
         }
     }
+}
+
+/** Label for the currently selected App-Detection poll interval. */
+private fun detectionSensitivityLabel(intervalMs: Int): Int = when {
+    intervalMs <= 2000 -> R.string.detection_fast
+    intervalMs <= 5000 -> R.string.detection_normal
+    else -> R.string.detection_battery
 }

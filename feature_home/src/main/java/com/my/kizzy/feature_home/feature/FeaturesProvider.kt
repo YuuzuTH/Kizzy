@@ -12,6 +12,8 @@
 
 package com.my.kizzy.feature_home.feature
 
+import com.my.kizzy.feature_rpc_base.stopRpcService
+
 import android.content.Intent
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -48,12 +50,12 @@ fun homeFeaturesProvider(
             },
             onCheckedChange = {
                 if (it) {
-                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
-                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
-                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
+                    ctx.stopRpcService(CustomRpcService::class.java)
+                    ctx.stopRpcService(ExperimentalRpc::class.java)
+                    ctx.stopRpcService(MediaRpcService::class.java)
                     ctx.startService(Intent(ctx, AppDetectionService::class.java))
                 } else
-                    ctx.stopService(Intent(ctx, AppDetectionService::class.java))
+                    ctx.stopRpcService(AppDetectionService::class.java)
             },
             shape = RoundedCornerShape(20.dp, 44.dp, 20.dp, 44.dp),
             tooltipText = stringResource(id = R.string.main_appDetection_details),
@@ -69,12 +71,12 @@ fun homeFeaturesProvider(
             },
             onCheckedChange = {
                 if (it) {
-                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
-                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
-                    ctx.stopService(Intent(ctx, AppDetectionService::class.java))
+                    ctx.stopRpcService(CustomRpcService::class.java)
+                    ctx.stopRpcService(ExperimentalRpc::class.java)
+                    ctx.stopRpcService(AppDetectionService::class.java)
                     ctx.startService(Intent(ctx, MediaRpcService::class.java))
                 } else
-                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
+                    ctx.stopRpcService(MediaRpcService::class.java)
             },
             shape = RoundedCornerShape(44.dp, 20.dp, 44.dp, 20.dp),
             tooltipText = stringResource(id = R.string.main_mediaRpc_details),
@@ -94,12 +96,12 @@ fun homeFeaturesProvider(
                     intent.apply {
                         putExtra("RPC", lastRpc)
                     }
-                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
-                    ctx.stopService(Intent(ctx, AppDetectionService::class.java))
+                    ctx.stopRpcService(MediaRpcService::class.java)
+                    ctx.stopRpcService(ExperimentalRpc::class.java)
+                    ctx.stopRpcService(AppDetectionService::class.java)
                     ctx.startService(intent)
                 } else
-                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
+                    ctx.stopRpcService(CustomRpcService::class.java)
             },
             shape = RoundedCornerShape(44.dp, 20.dp, 44.dp, 20.dp),
             showSwitch = Prefs[Prefs.LAST_RUN_CUSTOM_RPC, ""].isNotEmpty(),
@@ -120,12 +122,12 @@ fun homeFeaturesProvider(
                     intent.apply {
                         putExtra("RPC", lastRpc)
                     }
-                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
-                    ctx.stopService(Intent(ctx, AppDetectionService::class.java))
+                    ctx.stopRpcService(MediaRpcService::class.java)
+                    ctx.stopRpcService(ExperimentalRpc::class.java)
+                    ctx.stopRpcService(AppDetectionService::class.java)
                     ctx.startService(intent)
                 } else
-                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
+                    ctx.stopRpcService(CustomRpcService::class.java)
             },
             shape = RoundedCornerShape(20.dp, 44.dp, 20.dp, 44.dp),
             showSwitch = Prefs[Prefs.LAST_RUN_CONSOLE_RPC, ""].isNotEmpty(),
@@ -140,12 +142,12 @@ fun homeFeaturesProvider(
             isChecked = AppUtils.experimentalRpcRunning(),
             onCheckedChange = {
                 if (it) {
-                    ctx.stopService(Intent(ctx, MediaRpcService::class.java))
-                    ctx.stopService(Intent(ctx, CustomRpcService::class.java))
-                    ctx.stopService(Intent(ctx, AppDetectionService::class.java))
+                    ctx.stopRpcService(MediaRpcService::class.java)
+                    ctx.stopRpcService(CustomRpcService::class.java)
+                    ctx.stopRpcService(AppDetectionService::class.java)
                     ctx.startService(Intent(ctx, ExperimentalRpc::class.java))
                 } else
-                    ctx.stopService(Intent(ctx, ExperimentalRpc::class.java))
+                    ctx.stopRpcService(ExperimentalRpc::class.java)
             },
             shape = RoundedCornerShape(20.dp, 44.dp, 20.dp, 44.dp),
             showSwitch = hasUsageAccess.value && hasNotificationAccess.value && userVerified,

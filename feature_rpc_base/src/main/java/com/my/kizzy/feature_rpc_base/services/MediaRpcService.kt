@@ -22,23 +22,25 @@ import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.PowerManager.WakeLock
 import com.my.kizzy.data.get_current_data.media.GetCurrentPlayingMedia
 import com.my.kizzy.data.rpc.KizzyRPC
+import com.my.kizzy.data.rpc.RpcConnectionState
+import com.my.kizzy.feature_rpc_base.observeConnectionStatus
 import com.my.kizzy.domain.interfaces.Logger
-import com.my.kizzy.domain.model.rpc.RpcButtons
 import com.my.kizzy.feature_rpc_base.Constants
+import com.my.kizzy.feature_rpc_base.forgetActiveService
+import com.my.kizzy.feature_rpc_base.rememberActiveService
 import com.my.kizzy.feature_rpc_base.setLargeIcon
 import com.my.kizzy.preference.Prefs
-import com.my.kizzy.preference.Prefs.MEDIA_RPC_ENABLE_TIMESTAMPS
 import com.my.kizzy.preference.Prefs.TOKEN
 import com.my.kizzy.resources.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -55,6 +57,13 @@ class MediaRpcService : Service() {
 
     @Inject
     lateinit var logger: Logger
+
+    @Inject
+    lateinit var rpcConnectionState: RpcConnectionState
+
+    // Separate from `scope`: the presence flow calls scope.cancelChildren() constantly, which
+    // would kill this collector. Cancelled in onDestroy.
+    private val connectionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var wakeLock: WakeLock? = null
 
@@ -94,11 +103,23 @@ class MediaRpcService : Service() {
             .addAction(R.drawable.ic_media_rpc, getString(R.string.exit), pendingIntent)
             .setContentText(getString(R.string.idling_notification))
             .build()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            startForeground(Constants.NOTIFICATION_ID, notification)
-        } else {
-            startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                startForeground(Constants.NOTIFICATION_ID, notification)
+            } else {
+                startForeground(Constants.NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            }
+        } catch (e: Exception) {
+            // A background START_STICKY restart can be rejected on Android 12+
+            // (ForegroundServiceStartNotAllowedException) — fail soft, don't crash.
+            stopSelf()
+            return
         }
+        // Went foreground successfully — mark this as the service to bring back after a reboot.
+        rememberActiveService(this)
+        // Surface "reconnecting…" in the notification if the gateway drops mid-session.
+        rpcConnectionState.reset()
+        observeConnectionStatus(connectionScope, rpcConnectionState, notificationManager)
 
         mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
         mediaSessionManager.addOnActiveSessionsChangedListener(::activeSessionsListener, ComponentName(this, NotificationListener::class.java))
@@ -108,8 +129,13 @@ class MediaRpcService : Service() {
     }
 
     suspend private fun updatePresence() {
-        val enableTimestamps = Prefs[MEDIA_RPC_ENABLE_TIMESTAMPS, false]
-        val playingMedia = getCurrentPlayingMedia()
+        // GetCurrentPlayingMedia now resolves everything — text/images (legacy toggles or a
+        // per-app override's template), activity type, status, buttons, party and stream URL —
+        // in one place, same as AppRpcOverrides.resolveFull() does for App Detection. This
+        // service is just a thin consumer of the result, not a second place that re-reads Prefs.
+        val presence = getCurrentPlayingMedia()
+        val playingMedia = presence.rpc
+        val enableTimestamps = presence.enableTimestamps
 
         notificationManager.notify(
             Constants.NOTIFICATION_ID,
@@ -125,8 +151,6 @@ class MediaRpcService : Service() {
                 .build()
         )
 
-        val rpcButtonsString = Prefs[Prefs.RPC_BUTTONS_DATA, "{}"]
-        val rpcButtons = Json.decodeFromString<RpcButtons>(rpcButtonsString)
         when (kizzyRPC.isRpcRunning()) {
             true -> {
                 if (playingMedia.name.isBlank()) {
@@ -141,21 +165,27 @@ class MediaRpcService : Service() {
                     return
                 }
                 kizzyRPC.apply {
+                    // Same instance is reused across track/app switches; clear leftover builder
+                    // state (a previous app's buttons/party/stream URL) before building fresh —
+                    // mirrors AppDetectionService's non-running branch (this one didn't call it
+                    // before per-app overrides existed, since nothing here used to vary per app).
+                    resetBuilder()
                     setName(playingMedia.name)
-                    setType(Prefs[Prefs.CUSTOM_ACTIVITY_TYPE, 0])
+                    setType(playingMedia.type ?: 0)
                     setDetails(playingMedia.details)
                     setState(playingMedia.state)
                     setStartTimestamps(if (enableTimestamps) playingMedia.time?.start else null)
                     setStopTimestamps(if (enableTimestamps) playingMedia.time?.end else null)
-                    setStatus(Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"])
+                    setStatus(playingMedia.status)
+                    setPartySize(playingMedia.partyCurrentSize, playingMedia.partyMaxSize)
                     setLargeImage(playingMedia.largeImage, playingMedia.largeText)
                     setSmallImage(playingMedia.smallImage, playingMedia.smallText)
-                    if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
-                        with(rpcButtons) {
-                            setButton1(button1.takeIf { it.isNotEmpty() })
-                            setButton1URL(button1Url.takeIf { it.isNotEmpty() })
-                            setButton2(button2.takeIf { it.isNotEmpty() })
-                            setButton2URL(button2Url.takeIf { it.isNotEmpty() })
+                    setStreamUrl(playingMedia.streamUrl)
+                    playingMedia.buttons?.forEachIndexed { index, btn ->
+                        if (index == 0) {
+                            setButton1(btn.label); setButton1URL(btn.url)
+                        } else {
+                            setButton2(btn.label); setButton2URL(btn.url)
                         }
                     }
                     build()
@@ -166,23 +196,33 @@ class MediaRpcService : Service() {
 
     private val mediaControllerCallback = MediaControllerCallback()
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Re-registers the callback on the *current* active controller and refreshes the
+    // presence. Runs on the main looper and is NOT tied to `scope`, so a concurrent
+    // playback/metadata callback calling scope.cancelChildren() can never abort the
+    // (un)registration half-way (which previously left the new session unregistered).
+    private val reRegisterRunnable = Runnable {
+        val sessions = mediaSessionManager.getActiveSessions(
+            ComponentName(this@MediaRpcService, NotificationListener::class.java)
+        )
+        currentMediaController?.unregisterCallback(mediaControllerCallback)
+        currentMediaController = sessions.firstOrNull()
+        currentMediaController?.registerCallback(mediaControllerCallback)
+        scope.coroutineContext.cancelChildren()
+        scope.launch { updatePresence() }
+    }
+
     private fun activeSessionsListener(mediaSessions: List<MediaController>?, isEvent: Boolean = true) {
         logger.d("MediaRPC", "Active sessions changed")
 
-        // For some reason, event is occasionally fired before session list is actually updated
-        if (isEvent) runBlocking { delay(1500) }
-
-        if (mediaSessions?.isNotEmpty() == true) {
-            currentMediaController?.unregisterCallback(mediaControllerCallback)
-            currentMediaController = mediaSessionManager.getActiveSessions(ComponentName(this, NotificationListener::class.java)).firstOrNull()
-            currentMediaController?.registerCallback(mediaControllerCallback)
-        } else {
-            currentMediaController?.unregisterCallback(mediaControllerCallback)
-            currentMediaController = null
-        }
-
-        scope.coroutineContext.cancelChildren()
-        scope.launch { updatePresence() }
+        // Debounce on the main looper. The event is occasionally fired before the
+        // session list is actually updated, so we wait 1.5s and re-query inside the
+        // runnable. This keeps the registration off the cancellable coroutine scope
+        // (fixes: a concurrent callback could cancel it and drop the registration)
+        // while still not blocking the main thread the way runBlocking{delay} did.
+        mainHandler.removeCallbacks(reRegisterRunnable)
+        mainHandler.postDelayed(reRegisterRunnable, if (isEvent) 1500L else 0L)
     }
 
     private inner class MediaControllerCallback: MediaController.Callback() {
@@ -208,8 +248,17 @@ class MediaRpcService : Service() {
         override fun onSessionDestroyed() {
             super.onSessionDestroyed()
 
+            // Same grace delay as the two callbacks above, for the same reason — a player
+            // (observed with YT Music) commonly destroys its MediaSession and creates a fresh
+            // one for the next track rather than reusing it, so this fires mid-transition, not
+            // just on a genuine stop. Without the delay, updatePresence() reads no session at
+            // all (the new one hasn't registered yet) and treats a track change as "stopped",
+            // closing the gateway connection over what's really just a momentary gap.
             scope.coroutineContext.cancelChildren()
-            scope.launch { updatePresence() }
+            scope.launch {
+                delay(1000)
+                updatePresence()
+            }
         }
     }
 
@@ -223,20 +272,26 @@ class MediaRpcService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
             it.action?.let { ac ->
-                if (ac == Constants.ACTION_STOP_SERVICE)
+                if (ac == Constants.ACTION_STOP_SERVICE) {
+                    // User tapped Stop — don't auto-start this again on the next boot.
+                    forgetActiveService(javaClass.name)
                     stopSelf()
-                else if (ac == Constants.ACTION_RESTART_SERVICE) {
+                } else if (ac == Constants.ACTION_RESTART_SERVICE) {
                     stopSelf()
                     startService(Intent(this, MediaRpcService::class.java))
                 }
             }
         }
-        return super.onStartCommand(intent, flags, startId)
+        // START_STICKY so the system restarts the service after a low-memory kill;
+        // onCreate re-registers the media session listener, so it recovers on its own.
+        return START_STICKY
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(reRegisterRunnable)
         mediaSessionManager.removeOnActiveSessionsChangedListener(::activeSessionsListener)
         currentMediaController?.unregisterCallback(mediaControllerCallback)
+        connectionScope.cancel()
         scope.cancel()
         kizzyRPC.closeRPC()
         wakeLock?.let {
