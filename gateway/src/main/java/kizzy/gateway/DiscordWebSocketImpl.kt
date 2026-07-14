@@ -3,6 +3,7 @@ package kizzy.gateway
 import com.my.kizzy.domain.interfaces.Logger
 import com.my.kizzy.domain.interfaces.NoOpLogger
 import io.ktor.client.*
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kizzy.gateway.entities.Heartbeat
@@ -68,8 +69,15 @@ open class DiscordWebSocketImpl(
     // that as gateway close code 1006 ("closed without close frame") on nearly every reconnect,
     // and the connection never reaching READY again. The one long-lived client survives every
     // close()/connect() cycle on this object instead, same as the original 2023 code.
-    private val client: HttpClient = HttpClient {
+    private val client: HttpClient = HttpClient(CIO) {
         install(WebSockets)
+        // CIO's default requestTimeout is 15s, applied to the whole session including a
+        // WebSocket — fine for a normal HTTP request, fatal here: this account's READY
+        // payload (guild list etc., a large account active since 2018) can take longer than
+        // that to fully arrive on a mobile connection, so the engine kills the connection with
+        // an abrupt 1006 right as it's waiting on READY, on essentially every fresh IDENTIFY.
+        // A long-lived gateway session has no natural request boundary to time out against.
+        engine { requestTimeout = 0 }
     }
     private val json = Json{
         ignoreUnknownKeys = true
