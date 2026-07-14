@@ -176,7 +176,11 @@ class GetCurrentPlayingMedia @Inject constructor(
                     )
                 }
 
-                val globalActivityType = Prefs[Prefs.MEDIA_RPC_ACTIVITY_TYPE, 0]
+                // Fixed at 0 (Playing) — a per-app override already has its own "Activity Type"
+                // picker (with a real "Default" choice), so a second, global picker for the
+                // same thing was a redundant extra screen, not a distinct feature. Removed in
+                // v6.13.2.000 after the owner pointed out apps are already customized one by one.
+                val globalActivityType = 0
                 val globalStatus = Prefs[Prefs.CUSTOM_ACTIVITY_STATUS, "dnd"]
                 val globalButtons = if (Prefs[Prefs.USE_RPC_BUTTONS, false]) {
                     val rpcButtons = Json.decodeFromString<RpcButtons>(Prefs[Prefs.RPC_BUTTONS_DATA, "{}"])

@@ -34,14 +34,12 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.filled.PlaylistAddCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -72,7 +70,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.my.kizzy.data.rpc.AppRpcOverride
-import com.my.kizzy.data.rpc.Constants
 import com.my.kizzy.data.rpc.TemplateKeys
 import com.my.kizzy.data.rpc.TemplateProcessor
 import com.my.kizzy.feature_rpc_base.AppUtils
@@ -94,10 +91,8 @@ import com.my.kizzy.ui.components.AppsItem
 import com.my.kizzy.ui.components.BackButton
 import com.my.kizzy.ui.components.MediaOverrideHelpDialog
 import com.my.kizzy.ui.components.SearchBar
-import com.my.kizzy.ui.components.SettingItem
 import com.my.kizzy.ui.components.Subtitle
 import com.my.kizzy.ui.components.SwitchBar
-import com.my.kizzy.ui.components.preference.PreferenceSingleChoiceItem
 import com.my.kizzy.ui.components.preference.PreferenceSwitch
 import com.my.kizzy.ui.components.preference.PreferencesHint
 import java.io.File
@@ -160,12 +155,6 @@ fun MediaRPC(
     var hideOnPause by remember { mutableStateOf(Prefs[MEDIA_RPC_HIDE_ON_PAUSE, false]) }
     var isShowPlaybackState by remember { mutableStateOf(Prefs[MEDIA_RPC_SHOW_PLAYBACK_STATE, false]) }
     var showSongAsTitle by remember { mutableStateOf(Prefs[Prefs.MEDIA_RPC_SHOW_SONG_AS_TITLE, false]) }
-    // Scoped to Media RPC only — used to live as a global "Custom Activity Type" toggle in
-    // Settings that silently also (mis)applied here with no way to tell it apart per feature.
-    // Streaming (type 1) needs a stream URL or Discord drops the whole presence with no visible
-    // error, which is exactly what made this worth pulling out of a shared global setting.
-    var mediaActivityType by remember { mutableStateOf(Prefs[Prefs.MEDIA_RPC_ACTIVITY_TYPE, 0]) }
-    var showActivityTypeDialog by remember { mutableStateOf(false) }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState(),
@@ -344,17 +333,6 @@ fun MediaRPC(
                     }
                 }
                 item {
-                    SettingItem(
-                        title = stringResource(id = R.string.activity_type),
-                        description = Constants.ACTIVITY_TYPE.entries
-                            .firstOrNull { it.value == mediaActivityType }?.key
-                            ?: mediaActivityType.toString(),
-                        icon = Icons.Default.Category,
-                    ) {
-                        showActivityTypeDialog = true
-                    }
-                }
-                item {
                     Subtitle(
                         text = "Apps",
                         modifier = Modifier
@@ -424,32 +402,6 @@ fun MediaRPC(
 
             if (showHelp) {
                 MediaOverrideHelpDialog(onDismissRequest = { showHelp = false })
-            }
-
-            if (showActivityTypeDialog) {
-                AlertDialog(
-                    onDismissRequest = { showActivityTypeDialog = false },
-                    title = { Text(text = stringResource(id = R.string.activity_type)) },
-                    text = {
-                        Column {
-                            Constants.ACTIVITY_TYPE.forEach { (label, value) ->
-                                PreferenceSingleChoiceItem(
-                                    text = label,
-                                    selected = mediaActivityType == value,
-                                ) {
-                                    mediaActivityType = value
-                                    Prefs[Prefs.MEDIA_RPC_ACTIVITY_TYPE] = value
-                                    showActivityTypeDialog = false
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showActivityTypeDialog = false }) {
-                            Text(text = stringResource(id = R.string.cancel))
-                        }
-                    }
-                )
             }
 
             editingPkg?.let { pkg ->
