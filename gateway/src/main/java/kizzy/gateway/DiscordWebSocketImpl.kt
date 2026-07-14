@@ -69,14 +69,32 @@ open class DiscordWebSocketImpl(
         encodeDefaults = true
     }
 
+    // Stored (not recomputed) so every launch{} in this class shares one real parent — a `get()`
+    // that built `SupervisorJob() + Dispatchers.Default` fresh on every access (the original
+    // upstream code) meant `this.cancel()` in close() cancelled a brand-new, childless job every
+    // time instead of the job any coroutine was actually launched under, and `isActive` always
+    // read a freshly-minted (hence always-active) job regardless of whether close() had run.
+    // Net effect: close() never actually stopped the gateway receive loop or any reconnect
+    // backoff in flight — it just kept running in the background, still mutating the shared
+    // `websocket`/`connected`/`sessionId` fields, racing whatever connect() started next. Both
+    // Media RPC and App Detection close()+rebuild on every pause/app-switch, so this is the
+    // gateway instability (never showing up / dropping silently while still "detecting") that
+    // the 2026-07-13 connecting-flag guard reduced the frequency of but didn't fix at the root.
+    // A cancelled Job can't launch new children, so it's replaced with a fresh one in connect()
+    // rather than here — that keeps isActive meaningfully false in the gap between close() and
+    // the next connect(), instead of flipping back to "active" immediately.
+    private var supervisorJob: CompletableJob = SupervisorJob()
     override val coroutineContext: CoroutineContext
-        get() = SupervisorJob() + Dispatchers.Default
+        get() = supervisorJob + Dispatchers.Default
 
     override suspend fun connect() {
         // Already connected, or a connect/retry chain is already in flight — a redundant call
         // here (e.g. KizzyRPC.connectToWebSocket() firing again from a second build() before
         // isRpcRunning() catches up) must no-op instead of racing the existing session/backoff.
         if (connected || connecting) return
+        // A prior close() cancelled the old job for good — a cancelled Job can never launch
+        // new children, so a fresh one is needed before this connect can start anything.
+        if (!supervisorJob.isActive) supervisorJob = SupervisorJob()
         connectInternal()
     }
 
@@ -309,7 +327,10 @@ open class DiscordWebSocketImpl(
         lastPresence = null
         heartbeatJob?.cancel()
         heartbeatJob = null
-        this.cancel()
+        // Cancels the actual job every launch{} in this class runs under (see the field's
+        // kdoc) — the gateway receive loop and any reconnect backoff still in flight both die
+        // here instead of lingering in the background to race the next connect().
+        supervisorJob.cancel()
         resumeGatewayUrl = null
         sessionId = null
         connected = false
